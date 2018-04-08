@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -15,12 +14,14 @@ import (
 	"golang.org/x/net/context"
 	"gopkg.in/go-gorp/gorp.v2"
 
+	caPB "github.com/letsencrypt/boulder/ca/proto"
 	"github.com/letsencrypt/boulder/cmd"
 	"github.com/letsencrypt/boulder/core"
 	"github.com/letsencrypt/boulder/features"
 	blog "github.com/letsencrypt/boulder/log"
 	"github.com/letsencrypt/boulder/metrics"
 	"github.com/letsencrypt/boulder/publisher/mock_publisher"
+	pubpb "github.com/letsencrypt/boulder/publisher/proto"
 	"github.com/letsencrypt/boulder/revocation"
 	"github.com/letsencrypt/boulder/sa"
 	"github.com/letsencrypt/boulder/sa/satest"
@@ -34,8 +35,16 @@ type mockCA struct {
 	sleepTime time.Duration
 }
 
-func (ca *mockCA) IssueCertificate(_ context.Context, csr x509.CertificateRequest, regID int64) (core.Certificate, error) {
+func (ca *mockCA) IssueCertificate(_ context.Context, _ *caPB.IssueCertificateRequest) (core.Certificate, error) {
 	return core.Certificate{}, nil
+}
+
+func (ca *mockCA) IssuePrecertificate(_ context.Context, _ *caPB.IssueCertificateRequest) (*caPB.IssuePrecertificateResponse, error) {
+	return nil, errors.New("IssuePrecertificate is not implemented by mockCA")
+}
+
+func (ca *mockCA) IssueCertificateForPrecertificate(_ context.Context, _ *caPB.IssueCertificateForPrecertificateRequest) (core.Certificate, error) {
+	return core.Certificate{}, errors.New("IssueCertificateForPrecertificate is not implemented by mockCA")
 }
 
 func (ca *mockCA) GenerateOCSP(_ context.Context, xferObj core.OCSPSigningRequest) (ocsp []byte, err error) {
@@ -101,6 +110,10 @@ func (p *mockPub) SubmitToSingleCT(_ context.Context, _, logPublicKey string, _ 
 	return err
 }
 
+func (p *mockPub) SubmitToSingleCTWithResult(_ context.Context, _ *pubpb.Request) (*pubpb.Result, error) {
+	return nil, nil
+}
+
 var log = blog.UseMock()
 
 const (
@@ -122,7 +135,7 @@ func setup(t *testing.T) (*OCSPUpdater, core.StorageAuthority, *gorp.DbMap, cloc
 	fc := clock.NewFake()
 	fc.Add(1 * time.Hour)
 
-	sa, err := sa.NewSQLStorageAuthority(dbMap, fc, log)
+	sa, err := sa.NewSQLStorageAuthority(dbMap, fc, log, metrics.NewNoopScope(), 1)
 	test.AssertNotError(t, err, "Failed to create SA")
 
 	cleanUp := test.ResetSATestDatabase(t)
@@ -471,9 +484,6 @@ func TestMissingReceiptsTick(t *testing.T) {
 	err = updater.missingReceiptsTick(ctx, 5)
 	test.AssertNotError(t, err, "Failed to run missingReceiptsTick")
 
-	// We have three logs configured from setup, and with the
-	// ResubmitMissingSCTsOnly feature flag disabled we expect that we submitted
-	// to all three logs.
 	logIDs, err := updater.getSubmittedReceipts("00")
 	test.AssertNotError(t, err, "Couldn't get submitted receipts for serial 00")
 	test.AssertEquals(t, len(logIDs), 3)
@@ -510,10 +520,6 @@ func TestMissingOnlyReceiptsTick(t *testing.T) {
 	serials, err := updater.getSerialsIssuedSince(fc.Now().Add(-2*time.Hour), 1)
 	test.AssertNotError(t, err, "Failed to retrieve serials")
 	test.AssertEquals(t, len(serials), 1)
-
-	// Enable the ResubmitMissingSCTsOnly feature flag for this test run
-	_ = features.Set(map[string]bool{"ResubmitMissingSCTsOnly": true})
-	defer features.Reset()
 
 	// Use a mock publisher so we can EXPECT specific calls
 	ctrl := gomock.NewController(t)
@@ -667,19 +673,25 @@ func TestLoopTickBackoff(t *testing.T) {
 		tickFunc:             func(context.Context, int) error { return errors.New("baddie") },
 	}
 
+	assertBetween := func(a, b, c int64) {
+		t.Helper()
+		if a < b || a > c {
+			t.Fatalf("%d is not between %d and %d", a, b, c)
+		}
+	}
 	start := l.clk.Now()
 	l.tick()
 	// Expected to sleep for 1m
 	backoff := float64(60000000000)
 	maxJittered := backoff * 1.2
-	test.AssertBetween(t, l.clk.Now().Sub(start).Nanoseconds(), int64(backoff), int64(maxJittered))
+	assertBetween(l.clk.Now().Sub(start).Nanoseconds(), int64(backoff), int64(maxJittered))
 
 	start = l.clk.Now()
 	l.tick()
 	// Expected to sleep for 1m30s
 	backoff = 90000000000
 	maxJittered = backoff * 1.2
-	test.AssertBetween(t, l.clk.Now().Sub(start).Nanoseconds(), int64(backoff), int64(maxJittered))
+	assertBetween(l.clk.Now().Sub(start).Nanoseconds(), int64(backoff), int64(maxJittered))
 
 	l.failures = 6
 	start = l.clk.Now()
@@ -687,7 +699,7 @@ func TestLoopTickBackoff(t *testing.T) {
 	// Expected to sleep for 11m23.4375s, should be truncated to 10m
 	backoff = 600000000000
 	maxJittered = backoff * 1.2
-	test.AssertBetween(t, l.clk.Now().Sub(start).Nanoseconds(), int64(backoff), int64(maxJittered))
+	assertBetween(l.clk.Now().Sub(start).Nanoseconds(), int64(backoff), int64(maxJittered))
 
 	l.tickFunc = func(context.Context, int) error { return nil }
 	start = l.clk.Now()

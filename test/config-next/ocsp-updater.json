@@ -23,25 +23,21 @@
       "keyFile": "test/grpc-creds/ocsp-updater.boulder/key.pem"
     },
     "publisher": {
-      "serverAddresses": ["publisher.boulder:19091"],
+      "serverAddresses": ["publisher.boulder:9091"],
       "timeout": "10s"
     },
     "saService": {
-      "serverAddresses": ["sa.boulder:19095"],
+      "serverAddresses": ["sa.boulder:9095"],
       "timeout": "15s"
     },
     "ocspGeneratorService": {
-      "serverAddresses": ["ca.boulder:19096"],
+      "serverAddresses": ["ca.boulder:9096"],
       "timeout": "15s"
     },
     "features": {
-      "ResubmitMissingSCTsOnly": true
+      "RPCHeadroom": true,
+      "EmbedSCTs": true
     }
-  },
-
-  "statsd": {
-    "server": "localhost:8125",
-    "prefix": "Boulder"
   },
 
   "syslog": {
@@ -50,7 +46,7 @@
   },
 
   "common": {
-    "issuerCert": "test/test-ca.pem",
+    "issuerCert": "test/test-ca2.pem",
     "ct": {
       "logs": [
         {

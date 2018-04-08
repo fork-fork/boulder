@@ -10,6 +10,8 @@ It is generated from these files:
 
 It has these top-level messages:
 	IssueCertificateRequest
+	IssuePrecertificateResponse
+	IssueCertificateForPrecertificateRequest
 	GenerateOCSPRequest
 	OCSPResponse
 */
@@ -39,6 +41,7 @@ const _ = proto1.ProtoPackageIsVersion2 // please upgrade the proto package
 type IssueCertificateRequest struct {
 	Csr              []byte `protobuf:"bytes,1,opt,name=csr" json:"csr,omitempty"`
 	RegistrationID   *int64 `protobuf:"varint,2,opt,name=registrationID" json:"registrationID,omitempty"`
+	OrderID          *int64 `protobuf:"varint,3,opt,name=orderID" json:"orderID,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
@@ -61,6 +64,75 @@ func (m *IssueCertificateRequest) GetRegistrationID() int64 {
 	return 0
 }
 
+func (m *IssueCertificateRequest) GetOrderID() int64 {
+	if m != nil && m.OrderID != nil {
+		return *m.OrderID
+	}
+	return 0
+}
+
+type IssuePrecertificateResponse struct {
+	DER              []byte `protobuf:"bytes,1,opt,name=DER,json=dER" json:"DER,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *IssuePrecertificateResponse) Reset()                    { *m = IssuePrecertificateResponse{} }
+func (m *IssuePrecertificateResponse) String() string            { return proto1.CompactTextString(m) }
+func (*IssuePrecertificateResponse) ProtoMessage()               {}
+func (*IssuePrecertificateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+func (m *IssuePrecertificateResponse) GetDER() []byte {
+	if m != nil {
+		return m.DER
+	}
+	return nil
+}
+
+type IssueCertificateForPrecertificateRequest struct {
+	DER              []byte   `protobuf:"bytes,1,opt,name=DER,json=dER" json:"DER,omitempty"`
+	SCTs             [][]byte `protobuf:"bytes,2,rep,name=SCTs,json=sCTs" json:"SCTs,omitempty"`
+	RegistrationID   *int64   `protobuf:"varint,3,opt,name=registrationID" json:"registrationID,omitempty"`
+	OrderID          *int64   `protobuf:"varint,4,opt,name=orderID" json:"orderID,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
+}
+
+func (m *IssueCertificateForPrecertificateRequest) Reset() {
+	*m = IssueCertificateForPrecertificateRequest{}
+}
+func (m *IssueCertificateForPrecertificateRequest) String() string { return proto1.CompactTextString(m) }
+func (*IssueCertificateForPrecertificateRequest) ProtoMessage()    {}
+func (*IssueCertificateForPrecertificateRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{2}
+}
+
+func (m *IssueCertificateForPrecertificateRequest) GetDER() []byte {
+	if m != nil {
+		return m.DER
+	}
+	return nil
+}
+
+func (m *IssueCertificateForPrecertificateRequest) GetSCTs() [][]byte {
+	if m != nil {
+		return m.SCTs
+	}
+	return nil
+}
+
+func (m *IssueCertificateForPrecertificateRequest) GetRegistrationID() int64 {
+	if m != nil && m.RegistrationID != nil {
+		return *m.RegistrationID
+	}
+	return 0
+}
+
+func (m *IssueCertificateForPrecertificateRequest) GetOrderID() int64 {
+	if m != nil && m.OrderID != nil {
+		return *m.OrderID
+	}
+	return 0
+}
+
 type GenerateOCSPRequest struct {
 	CertDER          []byte  `protobuf:"bytes,1,opt,name=certDER" json:"certDER,omitempty"`
 	Status           *string `protobuf:"bytes,2,opt,name=status" json:"status,omitempty"`
@@ -72,7 +144,7 @@ type GenerateOCSPRequest struct {
 func (m *GenerateOCSPRequest) Reset()                    { *m = GenerateOCSPRequest{} }
 func (m *GenerateOCSPRequest) String() string            { return proto1.CompactTextString(m) }
 func (*GenerateOCSPRequest) ProtoMessage()               {}
-func (*GenerateOCSPRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*GenerateOCSPRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *GenerateOCSPRequest) GetCertDER() []byte {
 	if m != nil {
@@ -110,7 +182,7 @@ type OCSPResponse struct {
 func (m *OCSPResponse) Reset()                    { *m = OCSPResponse{} }
 func (m *OCSPResponse) String() string            { return proto1.CompactTextString(m) }
 func (*OCSPResponse) ProtoMessage()               {}
-func (*OCSPResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*OCSPResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *OCSPResponse) GetResponse() []byte {
 	if m != nil {
@@ -121,6 +193,8 @@ func (m *OCSPResponse) GetResponse() []byte {
 
 func init() {
 	proto1.RegisterType((*IssueCertificateRequest)(nil), "ca.IssueCertificateRequest")
+	proto1.RegisterType((*IssuePrecertificateResponse)(nil), "ca.IssuePrecertificateResponse")
+	proto1.RegisterType((*IssueCertificateForPrecertificateRequest)(nil), "ca.IssueCertificateForPrecertificateRequest")
 	proto1.RegisterType((*GenerateOCSPRequest)(nil), "ca.GenerateOCSPRequest")
 	proto1.RegisterType((*OCSPResponse)(nil), "ca.OCSPResponse")
 }
@@ -137,6 +211,8 @@ const _ = grpc.SupportPackageIsVersion4
 
 type CertificateAuthorityClient interface {
 	IssueCertificate(ctx context.Context, in *IssueCertificateRequest, opts ...grpc.CallOption) (*core.Certificate, error)
+	IssuePrecertificate(ctx context.Context, in *IssueCertificateRequest, opts ...grpc.CallOption) (*IssuePrecertificateResponse, error)
+	IssueCertificateForPrecertificate(ctx context.Context, in *IssueCertificateForPrecertificateRequest, opts ...grpc.CallOption) (*core.Certificate, error)
 }
 
 type certificateAuthorityClient struct {
@@ -156,10 +232,30 @@ func (c *certificateAuthorityClient) IssueCertificate(ctx context.Context, in *I
 	return out, nil
 }
 
+func (c *certificateAuthorityClient) IssuePrecertificate(ctx context.Context, in *IssueCertificateRequest, opts ...grpc.CallOption) (*IssuePrecertificateResponse, error) {
+	out := new(IssuePrecertificateResponse)
+	err := grpc.Invoke(ctx, "/ca.CertificateAuthority/IssuePrecertificate", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *certificateAuthorityClient) IssueCertificateForPrecertificate(ctx context.Context, in *IssueCertificateForPrecertificateRequest, opts ...grpc.CallOption) (*core.Certificate, error) {
+	out := new(core.Certificate)
+	err := grpc.Invoke(ctx, "/ca.CertificateAuthority/IssueCertificateForPrecertificate", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for CertificateAuthority service
 
 type CertificateAuthorityServer interface {
 	IssueCertificate(context.Context, *IssueCertificateRequest) (*core.Certificate, error)
+	IssuePrecertificate(context.Context, *IssueCertificateRequest) (*IssuePrecertificateResponse, error)
+	IssueCertificateForPrecertificate(context.Context, *IssueCertificateForPrecertificateRequest) (*core.Certificate, error)
 }
 
 func RegisterCertificateAuthorityServer(s *grpc.Server, srv CertificateAuthorityServer) {
@@ -184,6 +280,42 @@ func _CertificateAuthority_IssueCertificate_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CertificateAuthority_IssuePrecertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueCertificateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CertificateAuthorityServer).IssuePrecertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ca.CertificateAuthority/IssuePrecertificate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CertificateAuthorityServer).IssuePrecertificate(ctx, req.(*IssueCertificateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CertificateAuthority_IssueCertificateForPrecertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueCertificateForPrecertificateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CertificateAuthorityServer).IssueCertificateForPrecertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ca.CertificateAuthority/IssueCertificateForPrecertificate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CertificateAuthorityServer).IssueCertificateForPrecertificate(ctx, req.(*IssueCertificateForPrecertificateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _CertificateAuthority_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "ca.CertificateAuthority",
 	HandlerType: (*CertificateAuthorityServer)(nil),
@@ -191,6 +323,14 @@ var _CertificateAuthority_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IssueCertificate",
 			Handler:    _CertificateAuthority_IssueCertificate_Handler,
+		},
+		{
+			MethodName: "IssuePrecertificate",
+			Handler:    _CertificateAuthority_IssuePrecertificate_Handler,
+		},
+		{
+			MethodName: "IssueCertificateForPrecertificate",
+			Handler:    _CertificateAuthority_IssueCertificateForPrecertificate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -264,23 +404,30 @@ var _OCSPGenerator_serviceDesc = grpc.ServiceDesc{
 func init() { proto1.RegisterFile("ca/proto/ca.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 276 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xcd, 0x4b, 0xf3, 0x40,
-	0x10, 0xc6, 0x9b, 0xe6, 0xed, 0x5b, 0x3b, 0xc6, 0x9a, 0xac, 0x1f, 0x0d, 0xf1, 0x12, 0x72, 0xca,
-	0x29, 0x85, 0x5e, 0x05, 0xa1, 0x36, 0x22, 0x05, 0x41, 0xa9, 0x27, 0xc5, 0xcb, 0xb2, 0x8e, 0x1a,
-	0x84, 0x6c, 0x9d, 0x99, 0x08, 0xfe, 0xf7, 0x92, 0x8f, 0x42, 0x10, 0xbd, 0xcd, 0xf2, 0xf0, 0xfc,
-	0x76, 0x7e, 0x03, 0x81, 0xd1, 0xf3, 0x2d, 0x59, 0xb1, 0x73, 0xa3, 0xb3, 0x66, 0x50, 0x43, 0xa3,
-	0xa3, 0x13, 0x63, 0x09, 0x77, 0x81, 0x25, 0x6c, 0xa3, 0xe4, 0x02, 0x66, 0x6b, 0xe6, 0x0a, 0x57,
-	0x48, 0x52, 0xbc, 0x14, 0x46, 0x0b, 0x6e, 0xf0, 0xa3, 0x42, 0x16, 0xb5, 0x0f, 0xae, 0x61, 0x0a,
-	0x9d, 0xd8, 0x49, 0x3d, 0x75, 0x0a, 0x53, 0xc2, 0xd7, 0x82, 0x85, 0xb4, 0x14, 0xb6, 0x5c, 0xe7,
-	0xe1, 0x30, 0x76, 0x52, 0x37, 0x79, 0x80, 0xa3, 0x6b, 0x2c, 0x91, 0xb4, 0xe0, 0xed, 0xea, 0xfe,
-	0x6e, 0xd7, 0x3d, 0x84, 0xb1, 0x41, 0x92, 0xfc, 0x6a, 0xd3, 0xf5, 0xa7, 0xf0, 0x9f, 0x45, 0x4b,
-	0xc5, 0x4d, 0x6f, 0x52, 0xbf, 0x09, 0x35, 0xdb, 0x32, 0x74, 0x63, 0x27, 0x1d, 0xa9, 0x00, 0x26,
-	0x84, 0x9f, 0xf6, 0x1d, 0x9f, 0x97, 0x12, 0xfe, 0x6b, 0xd0, 0x31, 0x78, 0x2d, 0x92, 0xb7, 0xb6,
-	0x64, 0x54, 0x3e, 0xec, 0x51, 0x37, 0xb7, 0xd0, 0xc5, 0x13, 0x1c, 0xf7, 0xf6, 0x5e, 0x56, 0xf2,
-	0x66, 0xa9, 0x90, 0x2f, 0x95, 0x83, 0xff, 0x53, 0x4a, 0x9d, 0x65, 0x46, 0x67, 0x7f, 0xa8, 0x46,
-	0x41, 0xd6, 0x9c, 0xa4, 0x97, 0x24, 0x83, 0xc5, 0x0d, 0x1c, 0xd4, 0xff, 0x77, 0x7a, 0x96, 0xd4,
-	0x39, 0x78, 0x7d, 0x57, 0x35, 0xab, 0x91, 0xbf, 0xd8, 0x47, 0x7e, 0x1d, 0xf4, 0x77, 0x4f, 0x06,
-	0x97, 0xe3, 0xc7, 0x51, 0x73, 0xf1, 0xef, 0x00, 0x00, 0x00, 0xff, 0xff, 0xd4, 0x60, 0xcf, 0xa9,
-	0xa0, 0x01, 0x00, 0x00,
+	// 400 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0xcf, 0xaf, 0xd2, 0x40,
+	0x10, 0xc7, 0x69, 0xcb, 0x13, 0xdf, 0xa4, 0x1a, 0xde, 0x3e, 0xf5, 0x35, 0xc5, 0x44, 0xec, 0xc1,
+	0x34, 0xc6, 0x94, 0x84, 0xab, 0x27, 0x6c, 0xd1, 0x90, 0x98, 0x48, 0x16, 0xbc, 0x78, 0xdb, 0x2c,
+	0x83, 0x36, 0xc6, 0x2e, 0xce, 0x6e, 0x4d, 0x3c, 0xf8, 0x4f, 0x78, 0xf5, 0x9f, 0x35, 0x2d, 0x2d,
+	0x94, 0xa6, 0x3c, 0x6e, 0xf3, 0x83, 0xe5, 0xf3, 0x9d, 0xf9, 0x4e, 0xe1, 0x46, 0x8a, 0xc9, 0x8e,
+	0x94, 0x51, 0x13, 0x29, 0xa2, 0x32, 0x60, 0xb6, 0x14, 0xfe, 0x53, 0xa9, 0x08, 0xeb, 0x86, 0x22,
+	0xdc, 0xb7, 0x82, 0x1f, 0x70, 0xb7, 0xd0, 0x3a, 0xc7, 0x18, 0xc9, 0xa4, 0xdb, 0x54, 0x0a, 0x83,
+	0x1c, 0x7f, 0xe6, 0xa8, 0x0d, 0x1b, 0x82, 0x23, 0x35, 0x79, 0xd6, 0xd8, 0x0a, 0x5d, 0x5e, 0x84,
+	0xec, 0x15, 0x3c, 0x26, 0xfc, 0x9a, 0x6a, 0x43, 0xc2, 0xa4, 0x2a, 0x5b, 0x24, 0x9e, 0x3d, 0xb6,
+	0x42, 0x87, 0xb7, 0xaa, 0xcc, 0x83, 0x81, 0xa2, 0x0d, 0xd2, 0x22, 0xf1, 0x9c, 0xf2, 0x07, 0x75,
+	0x1a, 0x4c, 0x60, 0x54, 0xe2, 0x96, 0x84, 0xb2, 0x49, 0xd4, 0x3b, 0x95, 0x69, 0x2c, 0x90, 0xc9,
+	0x9c, 0xd7, 0xc8, 0xcd, 0x9c, 0x07, 0x7f, 0x2d, 0x08, 0xdb, 0x02, 0xdf, 0x2b, 0x6a, 0xbf, 0x3f,
+	0x28, 0x3e, 0x7d, 0xce, 0x18, 0xf4, 0x57, 0xf1, 0x5a, 0x7b, 0xf6, 0xd8, 0x09, 0x5d, 0xde, 0xd7,
+	0xf1, 0x5a, 0x77, 0x4c, 0xe1, 0x5c, 0x9a, 0xa2, 0x7f, 0x3a, 0xc5, 0x1f, 0xb8, 0xfd, 0x80, 0x19,
+	0x92, 0x30, 0xf8, 0x29, 0x5e, 0x2d, 0x6b, 0xbc, 0x07, 0x83, 0x42, 0xd4, 0x51, 0x42, 0x9d, 0xb2,
+	0x67, 0xf0, 0x40, 0x1b, 0x61, 0x72, 0x5d, 0x2e, 0xec, 0x9a, 0x57, 0x59, 0x51, 0x27, 0x14, 0x5a,
+	0x65, 0xa5, 0x84, 0x2b, 0x5e, 0x65, 0xec, 0x39, 0x5c, 0x13, 0xfe, 0x52, 0xdf, 0x71, 0x33, 0x33,
+	0x15, 0xfc, 0x58, 0x08, 0x5e, 0x83, 0xbb, 0xc7, 0x56, 0x5b, 0xf3, 0xe1, 0x21, 0x55, 0x71, 0x05,
+	0x3e, 0xe4, 0xd3, 0x7f, 0x36, 0x3c, 0x69, 0xac, 0x6e, 0x96, 0x9b, 0x6f, 0x8a, 0x52, 0xf3, 0x9b,
+	0x25, 0x30, 0x6c, 0xef, 0x95, 0x8d, 0x22, 0x29, 0xa2, 0x33, 0xe7, 0xe0, 0xdf, 0x44, 0xe5, 0xd9,
+	0x34, 0x3a, 0x41, 0x8f, 0x7d, 0x86, 0xdb, 0x0e, 0x3f, 0xef, 0xff, 0xa3, 0x17, 0x87, 0x66, 0xf7,
+	0x15, 0x04, 0x3d, 0xb6, 0x85, 0x97, 0x17, 0x4d, 0x67, 0x6f, 0xba, 0x20, 0xe7, 0x6e, 0xa3, 0x53,
+	0xfe, 0xf4, 0x23, 0x3c, 0x2a, 0x36, 0x59, 0x99, 0xa9, 0x88, 0xbd, 0x05, 0xb7, 0xe9, 0x2c, 0xbb,
+	0x2b, 0x18, 0x1d, 0x5e, 0xfb, 0xc3, 0xa2, 0xd1, 0x74, 0x21, 0xe8, 0xbd, 0x1b, 0x7c, 0xb9, 0x2a,
+	0x3f, 0xaa, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x09, 0x3d, 0x95, 0xee, 0x83, 0x03, 0x00, 0x00,
 }

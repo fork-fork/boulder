@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jmhodges/clock"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/letsencrypt/boulder/cmd"
 	"github.com/letsencrypt/boulder/core"
@@ -23,23 +24,36 @@ import (
 	"github.com/letsencrypt/boulder/metrics"
 	"github.com/letsencrypt/boulder/policy"
 	"github.com/letsencrypt/boulder/sa"
+
+	lintasn1 "github.com/globalsign/certlint/asn1"
+	"github.com/globalsign/certlint/certdata"
+	"github.com/globalsign/certlint/checks"
+	_ "github.com/globalsign/certlint/checks/certificate/all"
+	_ "github.com/globalsign/certlint/checks/extensions/all"
 )
 
 const (
 	good = "valid"
 	bad  = "invalid"
 
+	certlintCNError = "commonName field is deprecated"
+
 	filenameLayout = "20060102"
 
 	expectedValidityPeriod = time.Hour * 24 * 90
 )
+
+// certlintPSLErrPattern is a regex for matching Certlint error strings
+// complaining about a CN or SAN matching a public suffix list entry.
+var certlintPSLErrPattern = regexp.MustCompile(
+	`^Certificate (?:CommonName|subjectAltName) "[a-z0-9*][a-z0-9-.]+" ` +
+		`equals "[a-z0-9][a-z0-9-.]+" from the public suffix list$`)
 
 // For defense-in-depth in addition to using the PA & its hostnamePolicy to
 // check domain names we also perform a check against the regex's from the
 // forbiddenDomains array
 var forbiddenDomainPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^\s*$`),
-	regexp.MustCompile(`\.mil$`),
 	regexp.MustCompile(`\.local$`),
 	regexp.MustCompile(`^localhost$`),
 	regexp.MustCompile(`\.localhost$`),
@@ -96,7 +110,7 @@ type certChecker struct {
 	rMu          *sync.Mutex
 	issuedReport report
 	checkPeriod  time.Duration
-	stats        metrics.Statter
+	stats        metrics.Scope
 }
 
 func newChecker(saDbMap certDB, clk clock.Clock, pa core.PolicyAuthority, period time.Duration) certChecker {
@@ -188,6 +202,43 @@ func (c *certChecker) checkCert(cert core.Certificate) (problems []string) {
 		problems = append(problems, "Stored digest doesn't match certificate digest")
 	}
 
+	// Run linter
+	linter := new(lintasn1.Linter)
+	errs := linter.CheckStruct(cert.DER)
+	if errs != nil {
+		for _, err := range errs.List() {
+			problems = append(problems, err.Error())
+		}
+	}
+	d, err := certdata.Load(cert.DER)
+	if err != nil {
+		problems = append(problems, err.Error())
+	}
+	errs = checks.Certificate.Check(d)
+	if errs != nil {
+		for _, err := range errs.List() {
+			// commonName has been deprecated for years, but common practice is still
+			// to include it for compatibility reasons. For instance, Chrome on macOS
+			// until very recently would error on an empty Subject (which is what we
+			// would have if we omitted CommonName). There have been proposals at
+			// CA/Browser Forum for an alternate contentless field whose purpose would
+			// just be to make Subject non-empty, but so far they have not been
+			// successful. If the check error is `certlintCNError`, ignore it.
+			if err.Error() == certlintCNError {
+				continue
+			}
+			// certlint incorrectly flags certificates that have a subj. CN or SAN
+			// exactly equal to a *private* entry on the public suffix list. Since
+			// this is allowed and LE issues certificates for such names we ignore
+			// errors of this form until the upstream bug can be addressed. See
+			// https://github.com/globalsign/certlint/issues/17
+			if certlintPSLErrPattern.MatchString(err.Error()) {
+				continue
+			}
+			problems = append(problems, err.Error())
+		}
+	}
+
 	// Parse certificate
 	parsedCert, err := x509.ParseCertificate(cert.DER)
 	if err != nil {
@@ -233,7 +284,13 @@ func (c *certChecker) checkCert(cert core.Certificate) (problems []string) {
 		// Check that the PA is still willing to issue for each name in DNSNames + CommonName
 		for _, name := range append(parsedCert.DNSNames, parsedCert.Subject.CommonName) {
 			id := core.AcmeIdentifier{Type: core.IdentifierDNS, Value: name}
-			if err = c.pa.WillingToIssue(id); err != nil {
+			// TODO(https://github.com/letsencrypt/boulder/issues/3371): Distinguish
+			// between certificates issued by v1 and v2 API.
+			checkFunc := c.pa.WillingToIssue
+			if features.Enabled(features.WildcardDomains) {
+				checkFunc = c.pa.WillingToIssueWildcard
+			}
+			if err = checkFunc(id); err != nil {
 				problems = append(problems, fmt.Sprintf("Policy Authority isn't willing to issue for '%s': %s", name, err))
 			} else {
 				// For defense-in-depth, even if the PA was willing to issue for a name
@@ -297,8 +354,6 @@ func main() {
 	err = features.Set(config.CertChecker.Features)
 	cmd.FailOnError(err, "Failed to set feature flags")
 
-	stats, err := metrics.NewStatter(config.Statsd.Server, config.Statsd.Prefix)
-	cmd.FailOnError(err, "Failed to create StatsD client")
 	syslogger, err := syslog.Dial("", "", syslog.LOG_INFO|syslog.LOG_LOCAL0, "")
 	cmd.FailOnError(err, "Failed to dial syslog")
 	logger, err := blog.New(syslogger, 0, 0)
@@ -323,7 +378,8 @@ func main() {
 	cmd.FailOnError(err, "Couldn't load DB URL")
 	saDbMap, err := sa.NewDbMap(saDbURL, config.CertChecker.DBConfig.MaxDBConns)
 	cmd.FailOnError(err, "Could not connect to database")
-	go sa.ReportDbConnCount(saDbMap, metrics.NewStatsdScope(stats, "CertChecker"))
+	scope := metrics.NewPromScope(prometheus.DefaultRegisterer)
+	go sa.ReportDbConnCount(saDbMap, scope)
 
 	pa, err := policy.New(config.PA.Challenges)
 	cmd.FailOnError(err, "Failed to create PA")
@@ -332,7 +388,7 @@ func main() {
 
 	checker := newChecker(
 		saDbMap,
-		clock.Default(),
+		cmd.Clock(),
 		pa,
 		config.CertChecker.CheckPeriod.Duration,
 	)
@@ -342,7 +398,7 @@ func main() {
 	// is finished it will close the certificate channel which allows the range
 	// loops in checker.processCerts to break
 	go func() {
-		err = checker.getCerts(config.CertChecker.UnexpiredOnly)
+		err := checker.getCerts(config.CertChecker.UnexpiredOnly)
 		cmd.FailOnError(err, "Batch retrieval of certificates failed")
 	}()
 
@@ -353,7 +409,7 @@ func main() {
 		go func() {
 			s := checker.clock.Now()
 			checker.processCerts(wg, config.CertChecker.BadResultsOnly)
-			stats.TimingDuration("certChecker.processingLatency", time.Since(s), 1.0)
+			scope.TimingDuration("certChecker.processingLatency", time.Since(s))
 		}()
 	}
 	wg.Wait()

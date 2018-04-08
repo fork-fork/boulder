@@ -2,15 +2,15 @@
 
 package features
 
-import "fmt"
+import "strconv"
 
-const _FeatureFlag_name = "unusedIDNASupportAllowAccountDeactivationAllowKeyRolloverResubmitMissingSCTsOnlyGoogleSafeBrowsingV4UseAIAIssuerURLAllowTLS02ChallengesGenerateOCSPEarly"
+const _FeatureFlag_name = "unusedUseAIAIssuerURLReusePendingAuthzCountCertificatesExactIPv6FirstAllowRenewalFirstRLWildcardDomainsForceConsistentStatusEnforceChallengeDisableRPCHeadroomTLSSNIRevalidationEmbedSCTsCancelCTSubmissionsVAChecksGSBEnforceV2ContentTypeEnforceOverlappingWildcards"
 
-var _FeatureFlag_index = [...]uint8{0, 6, 17, 41, 57, 80, 100, 115, 135, 152}
+var _FeatureFlag_index = [...]uint16{0, 6, 21, 38, 60, 69, 88, 103, 124, 147, 158, 176, 185, 204, 215, 235, 262}
 
 func (i FeatureFlag) String() string {
 	if i < 0 || i >= FeatureFlag(len(_FeatureFlag_index)-1) {
-		return fmt.Sprintf("FeatureFlag(%d)", i)
+		return "FeatureFlag(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _FeatureFlag_name[_FeatureFlag_index[i]:_FeatureFlag_index[i+1]]
 }

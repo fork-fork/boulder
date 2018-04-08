@@ -7,15 +7,15 @@ import (
 	"net"
 	"testing"
 
-	"gopkg.in/square/go-jose.v1"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/letsencrypt/boulder/test"
 )
 
 func TestExpectedKeyAuthorization(t *testing.T) {
 	ch := Challenge{Token: "hi"}
-	jwk1 := &jose.JsonWebKey{Key: &rsa.PublicKey{N: big.NewInt(1234), E: 1234}}
-	jwk2 := &jose.JsonWebKey{Key: &rsa.PublicKey{N: big.NewInt(5678), E: 5678}}
+	jwk1 := &jose.JSONWebKey{Key: &rsa.PublicKey{N: big.NewInt(1234), E: 1234}}
+	jwk2 := &jose.JSONWebKey{Key: &rsa.PublicKey{N: big.NewInt(5678), E: 5678}}
 
 	ka1, err := ch.ExpectedKeyAuthorization(jwk1)
 	test.AssertNotError(t, err, "Failed to calculate expected key authorization 1")
@@ -49,7 +49,7 @@ func TestRecordSanityCheckOnUnsupportChallengeType(t *testing.T) {
 
 func TestChallengeSanityCheck(t *testing.T) {
 	// Make a temporary account key
-	var accountKey *jose.JsonWebKey
+	var accountKey *jose.JSONWebKey
 	err := json.Unmarshal([]byte(`{
     "kty":"RSA",
     "n":"yNWVhtYEKJR21y9xsHV-PD_bYwbXSeNuFal46xYxVfRL5mqha7vttvjB_vc7Xg2RvgCxHPCqoxgMPTzHrZT75LjCwIW2K_klBYN8oYvTwwmeSkAz6ut7ZxPv-nZaT5TJhGk0NT2kh_zSpdriEJ_3vW-mqxYbbBmpvHqsa1_zx9fSuHYctAZJWzxzUZXykbWMWQZpEiE0J4ajj51fInEzVn7VxV-mzfMyboQjujPh7aNJxAWSq4oQEJJDgWwSh9leyoJoPpONHxh5nEE5AjE01FkGICSxjpZsF-w8hOTI3XXohUdu29Se26k2B0PolDSuj0GIQU6-W9TdLXSjBb2SpQ",
@@ -57,7 +57,7 @@ func TestChallengeSanityCheck(t *testing.T) {
   }`), &accountKey)
 	test.AssertNotError(t, err, "Error unmarshaling JWK")
 
-	types := []string{ChallengeTypeHTTP01, ChallengeTypeTLSSNI01, ChallengeTypeTLSSNI02, ChallengeTypeDNS01}
+	types := []string{ChallengeTypeHTTP01, ChallengeTypeTLSSNI01, ChallengeTypeDNS01}
 	for _, challengeType := range types {
 		chall := Challenge{
 			Type:   challengeType,
@@ -91,4 +91,56 @@ func TestJSONBufferUnmarshal(t *testing.T) {
 	notValidBase64 := []byte(`{"Buffer":"!!!!"}`)
 	err := json.Unmarshal(notValidBase64, &testStruct)
 	test.Assert(t, err != nil, "Should have choked on invalid base64")
+}
+
+func TestAuthorizationSolvedBy(t *testing.T) {
+	validHTTP01 := HTTPChallenge01()
+	validHTTP01.Status = StatusValid
+	validDNS01 := DNSChallenge01()
+	validDNS01.Status = StatusValid
+	testCases := []struct {
+		Name           string
+		Authz          Authorization
+		ExpectedResult string
+	}{
+		// An authz with no challenges should return nil
+		{
+			Name:  "No challenges",
+			Authz: Authorization{},
+		},
+		// An authz with all non-valid challenges should return nil
+		{
+			Name: "All non-valid challenges",
+			Authz: Authorization{
+				Challenges: []Challenge{HTTPChallenge01(), DNSChallenge01()},
+			},
+		},
+		// An authz with one valid HTTP01 challenge amongst other challenges should
+		// return the HTTP01 challenge
+		{
+			Name: "Valid HTTP01 challenge",
+			Authz: Authorization{
+				Challenges: []Challenge{HTTPChallenge01(), validHTTP01, DNSChallenge01()},
+			},
+			ExpectedResult: "http-01",
+		},
+		// An authz with both a valid HTTP01 challenge and a valid DNS01 challenge
+		// among other challenges should return whichever valid challenge is first
+		// (in this case DNS01)
+		{
+			Name: "Valid HTTP01 and DNS01 challenge",
+			Authz: Authorization{
+				Challenges: []Challenge{validDNS01, HTTPChallenge01(), validHTTP01, DNSChallenge01()},
+			},
+			ExpectedResult: "dns-01",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Authz.SolvedBy()
+			// Make sure the result was the correct challenge type
+			test.AssertEquals(t, result, tc.ExpectedResult)
+		})
+	}
 }

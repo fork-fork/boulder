@@ -8,7 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"gopkg.in/square/go-jose.v1"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/letsencrypt/boulder/test"
 )
@@ -18,7 +18,9 @@ func TestNewToken(t *testing.T) {
 	token := NewToken()
 	fmt.Println(token)
 	tokenLength := int(math.Ceil(32 * 8 / 6.0)) // 32 bytes, b64 encoded
-	test.AssertIntEquals(t, len(token), tokenLength)
+	if len(token) != tokenLength {
+		t.Fatalf("Expected token of length %d, got %d", tokenLength, len(token))
+	}
 	collider := map[string]bool{}
 	// Test for very blatant RNG failures:
 	// Try 2^20 birthdays in a 2^72 search space...
@@ -43,7 +45,9 @@ func TestSerialUtils(t *testing.T) {
 
 	serialNum, err := StringToSerial("00000000000000000000016345785d8a0000")
 	test.AssertNotError(t, err, "Couldn't convert serial number to *big.Int")
-	test.AssertBigIntEquals(t, serialNum, big.NewInt(100000000000000000))
+	if serialNum.Cmp(big.NewInt(100000000000000000)) != 0 {
+		t.Fatalf("Incorrect conversion, got %d", serialNum)
+	}
 
 	badSerial, err := StringToSerial("doop!!!!000")
 	test.AssertEquals(t, fmt.Sprintf("%v", err), "Invalid serial number")
@@ -69,7 +73,7 @@ const JWK2JSON = `{
 
 func TestKeyDigest(t *testing.T) {
 	// Test with JWK (value, reference, and direct)
-	var jwk jose.JsonWebKey
+	var jwk jose.JSONWebKey
 	err := json.Unmarshal([]byte(JWK1JSON), &jwk)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +91,7 @@ func TestKeyDigest(t *testing.T) {
 }
 
 func TestKeyDigestEquals(t *testing.T) {
-	var jwk1, jwk2 jose.JsonWebKey
+	var jwk1, jwk2 jose.JSONWebKey
 	err := json.Unmarshal([]byte(JWK1JSON), &jwk1)
 	if err != nil {
 		t.Fatal(err)

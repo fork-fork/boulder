@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -39,7 +38,6 @@ command descriptions:
 `
 
 type config struct {
-	Statsd    cmd.StatsdConfig
 	TLS       cmd.TLSConfig
 	SAService *cmd.GRPCClientConfig
 	Syslog    cmd.SyslogConfig
@@ -67,9 +65,7 @@ func checkDER(sai certificateStorage, der []byte) error {
 	if err == nil {
 		return errAlreadyExists
 	}
-	// TODO(#2600): Remove core.NotFoundError check once boulder/errors
-	// code is deployed
-	if _, ok := err.(core.NotFoundError); ok || berrors.Is(err, berrors.NotFound) {
+	if berrors.Is(err, berrors.NotFound) {
 		return nil
 	}
 	return fmt.Errorf("Existing certificate lookup failed: %s", err)
@@ -120,7 +116,7 @@ func parseLogLine(sa certificateStorage, logger blog.Logger, line string) (found
 	return true, true
 }
 
-func setup(configFile string) (metrics.Scope, blog.Logger, core.StorageAuthority) {
+func setup(configFile string) (blog.Logger, core.StorageAuthority) {
 	configJSON, err := ioutil.ReadFile(configFile)
 	cmd.FailOnError(err, "Failed to read config file")
 	var conf config
@@ -128,19 +124,16 @@ func setup(configFile string) (metrics.Scope, blog.Logger, core.StorageAuthority
 	cmd.FailOnError(err, "Failed to parse config file")
 	err = features.Set(conf.Features)
 	cmd.FailOnError(err, "Failed to set feature flags")
-	stats, logger := cmd.StatsAndLogging(conf.Statsd, conf.Syslog)
-	scope := metrics.NewStatsdScope(stats, "OrphanFinder")
+	logger := cmd.NewLogger(conf.Syslog)
 
-	var tls *tls.Config
-	if conf.TLS.CertFile != nil {
-		tls, err = conf.TLS.Load()
-		cmd.FailOnError(err, "TLS config")
-	}
+	tlsConfig, err := conf.TLS.Load()
+	cmd.FailOnError(err, "TLS config")
 
-	conn, err := bgrpc.ClientSetup(conf.SAService, tls, scope)
+	clientMetrics := bgrpc.NewClientMetrics(metrics.NewNoopScope())
+	conn, err := bgrpc.ClientSetup(conf.SAService, tlsConfig, clientMetrics)
 	cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to SA")
 	sac := bgrpc.NewStorageAuthorityClient(sapb.NewStorageAuthorityClient(conn))
-	return scope, logger, sac
+	return logger, sac
 }
 
 func main() {
@@ -170,7 +163,7 @@ func main() {
 
 	switch command {
 	case "parse-ca-log":
-		stats, logger, sa := setup(*configFile)
+		logger, sa := setup(*configFile)
 		if *logPath == "" {
 			usage()
 		}
@@ -190,13 +183,10 @@ func main() {
 			}
 		}
 		logger.Info(fmt.Sprintf("Found %d orphans and added %d to the database\n", orphansFound, orphansAdded))
-		stats.Inc("Found", orphansFound)
-		stats.Inc("Added", orphansAdded)
-		stats.Inc("AddingFailed", orphansFound-orphansAdded)
 
 	case "parse-der":
 		ctx := context.Background()
-		_, _, sa := setup(*configFile)
+		_, sa := setup(*configFile)
 		if *derPath == "" || *regID == 0 {
 			usage()
 		}

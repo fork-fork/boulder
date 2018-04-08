@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"fmt"
 	"log"
 	"math/big"
@@ -17,7 +18,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/letsencrypt/boulder/core"
+	"github.com/letsencrypt/boulder/features"
 	blog "github.com/letsencrypt/boulder/log"
+	"github.com/letsencrypt/boulder/metrics"
 	"github.com/letsencrypt/boulder/policy"
 	"github.com/letsencrypt/boulder/sa"
 	"github.com/letsencrypt/boulder/sa/satest"
@@ -75,6 +78,56 @@ func BenchmarkCheckCert(b *testing.B) {
 	}
 }
 
+func TestCheckWildcardCert(t *testing.T) {
+	saDbMap, err := sa.NewDbMap(vars.DBConnSA, 0)
+	test.AssertNotError(t, err, "Couldn't connect to database")
+	saCleanup := test.ResetSATestDatabase(t)
+	defer func() {
+		saCleanup()
+	}()
+
+	_ = features.Set(map[string]bool{"WildcardDomains": true})
+	defer features.Reset()
+
+	testKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	fc := clock.NewFake()
+	fc.Add(time.Hour * 24 * 90)
+	checker := newChecker(saDbMap, fc, pa, expectedValidityPeriod)
+	issued := checker.clock.Now().Add(-time.Hour * 24 * 45)
+	goodExpiry := issued.Add(expectedValidityPeriod)
+	serial := big.NewInt(1337)
+
+	wildcardCert := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName: "*.example.com",
+		},
+		NotBefore:             issued,
+		NotAfter:              goodExpiry,
+		DNSNames:              []string{"*.example.com"},
+		SerialNumber:          serial,
+		BasicConstraintsValid: true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		OCSPServer:            []string{"http://example.com/ocsp"},
+		IssuingCertificateURL: []string{"http://example.com/cert"},
+	}
+	wildcardCertDer, err := x509.CreateCertificate(rand.Reader, &wildcardCert, &wildcardCert, &testKey.PublicKey, testKey)
+	test.AssertNotError(t, err, "Couldn't create certificate")
+	parsed, err := x509.ParseCertificate(wildcardCertDer)
+	test.AssertNotError(t, err, "Couldn't parse created certificate")
+	cert := core.Certificate{
+		Serial:  core.SerialToString(serial),
+		Digest:  core.Fingerprint256(wildcardCertDer),
+		Expires: parsed.NotAfter,
+		Issued:  parsed.NotBefore,
+		DER:     wildcardCertDer,
+	}
+	problems := checker.checkCert(cert)
+	for _, p := range problems {
+		t.Errorf(p)
+	}
+}
+
 func TestCheckCert(t *testing.T) {
 	saDbMap, err := sa.NewDbMap(vars.DBConnSA, 0)
 	test.AssertNotError(t, err, "Couldn't connect to database")
@@ -83,28 +136,54 @@ func TestCheckCert(t *testing.T) {
 		saCleanup()
 	}()
 
-	testKey, _ := rsa.GenerateKey(rand.Reader, 1024)
+	testKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	fc := clock.NewFake()
 	fc.Add(time.Hour * 24 * 90)
 
 	checker := newChecker(saDbMap, fc, pa, expectedValidityPeriod)
 
+	// Create a RFC 7633 OCSP Must Staple Extension.
+	// OID 1.3.6.1.5.5.7.1.24
+	ocspMustStaple := pkix.Extension{
+		Id:       asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 24},
+		Critical: false,
+		Value:    []uint8{0x30, 0x3, 0x2, 0x1, 0x5},
+	}
+
+	// Create a made up PKIX extension
+	imaginaryExtension := pkix.Extension{
+		Id:       asn1.ObjectIdentifier{1, 3, 3, 7},
+		Critical: false,
+		Value:    []uint8{0xC0, 0xFF, 0xEE},
+	}
+
 	issued := checker.clock.Now().Add(-time.Hour * 24 * 45)
 	goodExpiry := issued.Add(expectedValidityPeriod)
 	serial := big.NewInt(1337)
-	// Problems
-	//   Expiry period is too long
-	//   Basic Constraints aren't set
-	//   Wrong key usage (none)
+	longName := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeexample.com"
 	rawCert := x509.Certificate{
 		Subject: pkix.Name{
-			CommonName: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeexample.com",
+			CommonName: longName,
 		},
-		NotBefore:             issued,
-		NotAfter:              goodExpiry.AddDate(0, 0, 1), // Period too long
-		DNSNames:              []string{"example-a.com", "foodnotbombs.mil"},
+		NotBefore: issued,
+		NotAfter:  goodExpiry.AddDate(0, 0, 1), // Period too long
+		DNSNames: []string{
+			// longName should be flagged along with the long CN
+			longName,
+			"example-a.com",
+			"foodnotbombs.mil",
+			// `*.foodnotbombs.mil` should be flagged because the wildcard issuance feature is disabled
+			"*.foodnotbombs.mil",
+			// `dev-myqnapcloud.com` is included because it is an exact private
+			// entry on the public suffix list
+			"dev-myqnapcloud.com"},
 		SerialNumber:          serial,
 		BasicConstraintsValid: false,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		OCSPServer:            []string{"http://example.com/ocsp"},
+		IssuingCertificateURL: []string{"http://example.com/cert"},
+		ExtraExtensions:       []pkix.Extension{ocspMustStaple, imaginaryExtension},
 	}
 	brokenCertDer, err := x509.CreateCertificate(rand.Reader, &rawCert, &rawCert, &testKey.PublicKey, testKey)
 	test.AssertNotError(t, err, "Couldn't create certificate")
@@ -123,16 +202,17 @@ func TestCheckCert(t *testing.T) {
 	problems := checker.checkCert(cert)
 
 	problemsMap := map[string]int{
-		"Stored digest doesn't match certificate digest":                            1,
-		"Stored serial doesn't match certificate serial":                            1,
-		"Stored expiration doesn't match certificate NotAfter":                      1,
-		"Certificate doesn't have basic constraints set":                            1,
-		"Certificate has a validity period longer than 2160h0m0s":                   1,
-		"Stored issuance date is outside of 6 hour window of certificate NotBefore": 1,
-		"Certificate has incorrect key usage extensions":                            1,
-		"Certificate has common name >64 characters long (65)":                      1,
-		"Policy Authority was willing to issue but domain 'foodnotbombs.mil' " +
-			"matches forbiddenDomains entry \"\\\\.mil$\"": 1,
+		"Stored digest doesn't match certificate digest":                                                 1,
+		"Stored serial doesn't match certificate serial":                                                 1,
+		"Stored expiration doesn't match certificate NotAfter":                                           1,
+		"Certificate doesn't have basic constraints set":                                                 1,
+		"Certificate has a validity period longer than 2160h0m0s":                                        1,
+		"Stored issuance date is outside of 6 hour window of certificate NotBefore":                      1,
+		"Certificate has incorrect key usage extensions":                                                 1,
+		"Certificate has common name >64 characters long (65)":                                           1,
+		"Policy Authority isn't willing to issue for '*.foodnotbombs.mil': Wildcard names not supported": 1,
+		"commonName exceeding max length of 64":                                                          1,
+		"Certificate contains unknown extension (1.3.3.7)":                                               1,
 	}
 	for _, p := range problems {
 		_, ok := problemsMap[p]
@@ -144,7 +224,6 @@ func TestCheckCert(t *testing.T) {
 	for k := range problemsMap {
 		t.Errorf("Expected problem but didn't find it: '%s'.", k)
 	}
-	test.AssertEquals(t, len(problems), 9)
 
 	// Same settings as above, but the stored serial number in the DB is invalid.
 	cert.Serial = "not valid"
@@ -162,6 +241,7 @@ func TestCheckCert(t *testing.T) {
 	rawCert.DNSNames = []string{"example-a.com"}
 	rawCert.NotAfter = goodExpiry
 	rawCert.BasicConstraintsValid = true
+	rawCert.ExtraExtensions = []pkix.Extension{ocspMustStaple}
 	rawCert.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 	goodCertDer, err := x509.CreateCertificate(rand.Reader, &rawCert, &rawCert, &testKey.PublicKey, testKey)
 	test.AssertNotError(t, err, "Couldn't create certificate")
@@ -182,7 +262,7 @@ func TestGetAndProcessCerts(t *testing.T) {
 	fc := clock.NewFake()
 
 	checker := newChecker(saDbMap, fc, pa, expectedValidityPeriod)
-	sa, err := sa.NewSQLStorageAuthority(saDbMap, fc, blog.NewMock())
+	sa, err := sa.NewSQLStorageAuthority(saDbMap, fc, blog.NewMock(), metrics.NewNoopScope(), 1)
 	test.AssertNotError(t, err, "Couldn't create SA to insert certificates")
 	saCleanUp := test.ResetSATestDatabase(t)
 	defer func() {
@@ -311,10 +391,6 @@ func TestIsForbiddenDomain(t *testing.T) {
 		// Whitespace only
 		{Name: "", Expected: true},
 		{Name: "   ", Expected: true},
-		// Anything .mil
-		{Name: "foodnotbombs.mil", Expected: true},
-		{Name: "www.foodnotbombs.mil", Expected: true},
-		{Name: ".mil", Expected: true},
 		// Anything .local
 		{Name: "yokel.local", Expected: true},
 		{Name: "off.on.remote.local", Expected: true},

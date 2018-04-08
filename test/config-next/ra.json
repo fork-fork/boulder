@@ -4,32 +4,38 @@
     "maxConcurrentRPCServerRequests": 100000,
     "maxContactsPerRegistration": 100,
     "dnsTries": 3,
+    "dnsResolvers": [
+      "127.0.0.1:8053",
+      "127.0.0.1:8054"
+    ],
     "debugAddr": ":8002",
     "hostnamePolicyFile": "test/hostname-policy.json",
-    "maxNames": 1000,
+    "maxNames": 100,
     "doNotForceCN": true,
     "reuseValidAuthz": true,
-    "authorizationLifetimeDays": 60,
+    "authorizationLifetimeDays": 30,
     "pendingAuthorizationLifetimeDays": 7,
+    "weakKeyDirectory": "test/example-weak-keys.json",
+    "orderLifetime": "168h",
     "tls": {
       "caCertFile": "test/grpc-creds/minica.pem",
       "certFile": "test/grpc-creds/ra.boulder/cert.pem",
       "keyFile": "test/grpc-creds/ra.boulder/key.pem"
     },
     "vaService": {
-      "serverAddresses": ["va.boulder:19092"],
-      "timeout": "15s"
+      "serverAddresses": ["va.boulder:9092"],
+      "timeout": "20s"
     },
     "caService": {
-      "serverAddresses": ["ca.boulder:19093"],
+      "serverAddresses": ["ca.boulder:9093"],
       "timeout": "15s"
     },
     "publisherService": {
-      "serverAddresses": ["publisher.boulder:19091"],
-      "timeout": "15s"
+      "serverAddresses": ["publisher.boulder:9091"],
+      "timeout": "300s"
     },
     "saService": {
-      "serverAddresses": ["sa.boulder:19095"],
+      "serverAddresses": ["sa.boulder:9095"],
       "timeout": "15s"
     },
     "grpc": {
@@ -40,10 +46,49 @@
       ]
     },
     "features": {
-      "IDNASupport": true,
-      "AllowKeyRollover": true,
-      "AllowTLS02Challenges": true
-    }
+      "RPCHeadroom": true,
+      "WildcardDomains": true,
+      "TLSSNIRevalidation": true,
+      "ReusePendingAuthz": true,
+      "CancelCTSubmissions": false,
+      "EmbedSCTs": true,
+      "EnforceOverlappingWildcards": true,
+      "VAChecksGSB": true
+    },
+    "CTLogGroups2": [
+      {
+        "name": "a",
+        "logs": [
+          {
+            "uri": "http://boulder:4500",
+            "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYggOxPnPkzKBIhTacSYoIfnSL2jPugcbUKx83vFMvk5gKAz/AGe87w20riuPwEGn229hKVbEKHFB61NIqNHC3Q=="
+          },
+          {
+            "uri": "http://boulder:4501",
+            "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKtnFevaXV/kB8dmhCNZHmxKVLcHX1plaAsY9LrKilhYxdmQZiu36LvAvosTsqMVqRK9a96nC8VaxAdaHUbM8EA=="
+          }
+        ]
+      },
+      {
+        "name": "b",
+        "logs": [
+          {
+            "uri": "http://boulder:4510",
+            "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyw1HymhJkuxSIgt3gqW3sVXqMqB3EFsXcMfPFo0vYwjNiRmCJDXKsR0Flp7MAK+wc3X/7Hpc8liUbMhPet7tEA=="
+          },
+          {
+            "uri": "http://boulder:4511",
+            "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFRu37ZRLg8lT4rVQwMwh4oAOpXb4Sx+9hgQ+JFCjmAv3oDV+sDOMsC7hULkGTn+LB5L1SRo/XIY4Kw5V+nFXgg=="
+          }
+        ]
+      }
+    ],
+    "InformationalCTLogs": [
+      {
+        "uri": "http://boulder:4512",
+        "key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFRu37ZRLg8lT4rVQwMwh4oAOpXb4Sx+9hgQ+JFCjmAv3oDV+sDOMsC7hULkGTn+LB5L1SRo/XIY4Kw5V+nFXgg=="
+      }
+    ]
   },
 
   "pa": {
@@ -51,12 +96,8 @@
       "http-01": true,
       "tls-sni-01": true,
       "dns-01": true
-    }
-  },
-
-  "statsd": {
-    "server": "localhost:8125",
-    "prefix": "Boulder"
+    },
+    "challengesWhitelistFile": "test/challenges-whitelist.json"
   },
 
   "syslog": {
@@ -65,7 +106,6 @@
   },
 
   "common": {
-    "dnsResolver": "127.0.0.1:8053",
     "dnsTimeout": "1s",
     "dnsAllowLoopbackAddresses": true
   }

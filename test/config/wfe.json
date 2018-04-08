@@ -2,8 +2,8 @@
   "wfe": {
     "listenAddress": "0.0.0.0:4000",
     "TLSListenAddress": "0.0.0.0:4430",
-    "serverCertificatePath": "test/wfe.pem",
-    "serverKeyPath": "test/wfe.key",
+    "serverCertificatePath": "test/wfe-tls/boulder/cert.pem",
+    "serverKeyPath": "test/wfe-tls/boulder/key.pem",
     "requestTimeout": "10s",
     "allowOrigins": ["*"],
     "certCacheDuration": "6h",
@@ -13,7 +13,7 @@
     "shutdownStopTimeout": "10s",
     "shutdownKillTimeout": "1m",
     "subscriberAgreementURL": "http://boulder:4000/terms/v1",
-    "checkMalformedCSR": true,
+    "acceptRevocationReason": true,
     "allowAuthzDeactivation": true,
     "debugAddr": ":8000",
     "tls": {
@@ -22,33 +22,23 @@
       "keyFile": "test/grpc-creds/wfe.boulder/key.pem"
     },
     "raService": {
-      "serverAddresses": ["ra.boulder:19094"],
-      "timeout": "15s"
+      "serverAddresses": ["ra.boulder:9094"],
+      "timeout": "20s"
     },
     "saService": {
-      "serverAddresses": ["sa.boulder:19095"],
+      "serverAddresses": ["sa.boulder:9095"],
       "timeout": "15s"
+    },
+    "features": {
     }
   },
-  "allowedSigningAlgos": {
-    "rsa": true,
-    "ecdsanistp256": true,
-    "ecdsanistp384": true,
-    "ecdsanistp521": false
-  },
-
-  "statsd": {
-    "server": "localhost:8125",
-    "prefix": "Boulder"
-  },
-
-  "subscriberAgreementURL": "http://boulder:4000/terms/v1",
 
   "syslog": {
-    "stdoutlevel": 6
+    "stdoutlevel": 6,
+    "sysloglevel": 4
   },
 
   "common": {
-    "issuerCert": "test/test-ca.pem"
+    "issuerCert": "test/test-ca2.pem"
   }
 }

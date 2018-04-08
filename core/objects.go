@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/square/go-jose.v1"
+	"gopkg.in/square/go-jose.v2"
 
-	"github.com/letsencrypt/boulder/features"
 	"github.com/letsencrypt/boulder/probs"
 	"github.com/letsencrypt/boulder/revocation"
 )
@@ -70,7 +69,6 @@ const (
 const (
 	ChallengeTypeHTTP01   = "http-01"
 	ChallengeTypeTLSSNI01 = "tls-sni-01"
-	ChallengeTypeTLSSNI02 = "tls-sni-02"
 	ChallengeTypeDNS01    = "dns-01"
 )
 
@@ -83,8 +81,6 @@ func ValidChallenge(name string) bool {
 		fallthrough
 	case ChallengeTypeDNS01:
 		return true
-	case ChallengeTypeTLSSNI02:
-		return features.Enabled(features.AllowTLS02Challenges)
 
 	default:
 		return false
@@ -151,7 +147,7 @@ type Registration struct {
 	ID int64 `json:"id" db:"id"`
 
 	// Account key to which the details are attached
-	Key *jose.JsonWebKey `json:"key"`
+	Key *jose.JSONWebKey `json:"key"`
 
 	// Contact URIs
 	Contact *[]string `json:"contact,omitempty"`
@@ -165,23 +161,38 @@ type Registration struct {
 	// CreatedAt is the time the registration was created.
 	CreatedAt time.Time `json:"createdAt"`
 
-	Status AcmeStatus
+	Status AcmeStatus `json:"status"`
 }
 
 // ValidationRecord represents a validation attempt against a specific URL/hostname
 // and the IP addresses that were resolved and used
 type ValidationRecord struct {
 	// DNS only
-	Authorities []string `json:",omitempty"`
+	Authorities []string `json:"-"`
 
 	// SimpleHTTP only
 	URL string `json:"url,omitempty"`
 
 	// Shared
 	Hostname          string   `json:"hostname"`
-	Port              string   `json:"port"`
-	AddressesResolved []net.IP `json:"addressesResolved"`
-	AddressUsed       net.IP   `json:"addressUsed"`
+	Port              string   `json:"port,omitempty"`
+	AddressesResolved []net.IP `json:"addressesResolved,omitempty"`
+	AddressUsed       net.IP   `json:"addressUsed,omitempty"`
+	// AddressesTried contains a list of addresses tried before the `AddressUsed`.
+	// Presently this will only ever be one IP from `AddressesResolved` since the
+	// only retry is in the case of a v6 failure with one v4 fallback. E.g. if
+	// a record with `AddressesResolved: { 127.0.0.1, ::1 }` were processed for
+	// a challenge validation with the IPv6 first flag on and the ::1 address
+	// failed but the 127.0.0.1 retry succeeded then the record would end up
+	// being:
+	// {
+	//   ...
+	//   AddressesResolved: [ 127.0.0.1, ::1 ],
+	//   AddressUsed: 127.0.0.1
+	//   AddressesTried: [ ::1 ],
+	//   ...
+	// }
+	AddressesTried []net.IP `json:"addressesTried,omitempty"`
 }
 
 func looksLikeKeyAuthorization(str string) error {
@@ -216,17 +227,20 @@ type Challenge struct {
 	Error *probs.ProblemDetails `json:"error,omitempty"`
 
 	// A URI to which a response can be POSTed
-	URI string `json:"uri"`
+	URI string `json:"uri,omitempty"`
+
+	// For the V2 API the "URI" field is deprecated in favour of URL.
+	URL string `json:"url,omitempty"`
 
 	// Used by http-01, tls-sni-01, and dns-01 challenges
-	Token string `json:"token,omitempty"` // Used by http-00, tls-sni-00, and dns-00 challenges
+	Token string `json:"token,omitempty"`
 
-	// The KeyAuthorization provided by the client to start validation of
-	// the challenge. Set during
-	//
-	//   POST /acme/authz/:authzid/:challid
-	//
-	// Used by http-01, tls-sni-01, and dns-01 challenges
+	// The expected KeyAuthorization for validation of the challenge. Populated by
+	// the RA prior to passing the challenge to the VA. For legacy reasons this
+	// field is called "ProvidedKeyAuthorization" because it was initially set by
+	// the content of the challenge update POST from the client. It is no longer
+	// set that way and should be renamed to "KeyAuthorization".
+	// TODO(@cpu): Rename `ProvidedKeyAuthorization` to `KeyAuthorization`.
 	ProvidedKeyAuthorization string `json:"keyAuthorization,omitempty"`
 
 	// Contains information about URLs used or redirected to and IPs resolved and
@@ -236,7 +250,7 @@ type Challenge struct {
 
 // ExpectedKeyAuthorization computes the expected KeyAuthorization value for
 // the challenge.
-func (ch Challenge) ExpectedKeyAuthorization(key *jose.JsonWebKey) (string, error) {
+func (ch Challenge) ExpectedKeyAuthorization(key *jose.JSONWebKey) (string, error) {
 	if key == nil {
 		return "", fmt.Errorf("Cannot authorize a nil key")
 	}
@@ -265,8 +279,6 @@ func (ch Challenge) RecordsSane() bool {
 			}
 		}
 	case ChallengeTypeTLSSNI01:
-		fallthrough
-	case ChallengeTypeTLSSNI02:
 		if len(ch.ValidationRecord) > 1 {
 			return false
 		}
@@ -365,6 +377,13 @@ type Authorization struct {
 	// The server may suggest combinations of challenges if it
 	// requires more than one challenge to be completed.
 	Combinations [][]int `json:"combinations,omitempty" db:"combinations"`
+
+	// Wildcard is a Boulder-specific Authorization field that indicates the
+	// authorization was created as a result of an order containing a name with
+	// a `*.`wildcard prefix. This will help convey to users that an
+	// Authorization with the identifier `example.com` and one DNS-01 challenge
+	// corresponds to a name `*.example.com` from an associated order.
+	Wildcard bool `json:"wildcard,omitempty" db:"-"`
 }
 
 // FindChallenge will look for the given challenge inside this authorization. If
@@ -377,6 +396,21 @@ func (authz *Authorization) FindChallenge(challengeID int64) int {
 		}
 	}
 	return -1
+}
+
+// SolvedBy will look through the Authorizations challenges, returning the type
+// of the *first* challenge it finds with Status: valid, or "" if no challenge
+// is valid.
+func (authz *Authorization) SolvedBy() string {
+	if len(authz.Challenges) == 0 {
+		return ""
+	}
+	for _, chal := range authz.Challenges {
+		if chal.Status == StatusValid {
+			return chal.Type
+		}
+	}
+	return ""
 }
 
 // JSONBuffer fields get encoded and decoded JOSE-style, in base64url encoding
@@ -412,6 +446,12 @@ func (jb *JSONBuffer) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// Precertificate objects are entirely internal to the server.  The only
+// thing exposed on the wire is the precertificate itself.
+type Precertificate struct {
+	DER []byte `db:"der"`
+}
+
 // Certificate objects are entirely internal to the server.  The only
 // thing exposed on the wire is the certificate itself.
 type Certificate struct {
@@ -439,10 +479,6 @@ type IdentifierData struct {
 // and for validating that the subscriber has accepted the certificate.
 type CertificateStatus struct {
 	Serial string `db:"serial"`
-
-	// subscriberApproved: true iff the subscriber has posted back to the server
-	//   that they accept the certificate, otherwise 0.
-	SubscriberApproved bool `db:"subscriberApproved"`
 
 	// status: 'good' or 'revoked'. Note that good, expired certificates remain
 	//   with status 'good' but don't necessarily get fresh OCSP responses.
@@ -480,8 +516,6 @@ type CertificateStatus struct {
 	// [0]: https://github.com/letsencrypt/boulder/issues/1864
 	NotAfter  time.Time `db:"notAfter"`
 	IsExpired bool      `db:"isExpired"`
-
-	LockCol int64 `json:"-"`
 }
 
 // OCSPResponse is a (large) table of OCSP responses. This contains all
@@ -555,26 +589,21 @@ type FQDNSet struct {
 	Expires time.Time
 }
 
-// GPDNSAnswer represents a DNS record returned by the Google Public DNS API
-type GPDNSAnswer struct {
-	Name string `json:"name"`
-	Type uint16 `json:"type"`
-	TTL  int    `json:"TTL"`
-	Data string `json:"data"`
+// Order represents the request object that forms the basis of the v2 style
+// issuance flow
+type Order struct {
+	ID                int64
+	RegistrationID    int64
+	Expires           time.Time
+	Error             error
+	CertificateSerial string
+	Authorizations    []Authorization
+	Status            AcmeStatus
 }
 
-// GPDNSAnswer represents a DNS record returned by the Google Public DNS API
-type GPDNSResponse struct {
-	// Ignored fields
-	//   tc
-	//   rd
-	//   ra
-	//   ad
-	//   cd
-	//   question
-	//   additional
-	//   edns_client_subnet
-	Status  int           `json:"Status"`
-	Answer  []GPDNSAnswer `json:"Answer"`
-	Comment string        `json:"Comment"`
-}
+// SCTDER is a convenience type
+type SCTDERs [][]byte
+
+// CertDER is a convenience type that helps differentiate what the
+// underlying byte slice contains
+type CertDER []byte

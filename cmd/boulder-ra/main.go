@@ -1,32 +1,25 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"time"
-
-	"github.com/jmhodges/clock"
-	"google.golang.org/grpc"
 
 	"github.com/letsencrypt/boulder/bdns"
 	caPB "github.com/letsencrypt/boulder/ca/proto"
 	"github.com/letsencrypt/boulder/cmd"
-	"github.com/letsencrypt/boulder/core"
+	"github.com/letsencrypt/boulder/ctpolicy"
 	"github.com/letsencrypt/boulder/features"
 	"github.com/letsencrypt/boulder/goodkey"
 	bgrpc "github.com/letsencrypt/boulder/grpc"
-	"github.com/letsencrypt/boulder/metrics"
 	"github.com/letsencrypt/boulder/policy"
 	pubPB "github.com/letsencrypt/boulder/publisher/proto"
 	"github.com/letsencrypt/boulder/ra"
 	rapb "github.com/letsencrypt/boulder/ra/proto"
 	sapb "github.com/letsencrypt/boulder/sa/proto"
+	vaPB "github.com/letsencrypt/boulder/va/proto"
 )
-
-const clientName = "RA"
 
 type config struct {
 	RA struct {
@@ -43,7 +36,8 @@ type config struct {
 		// The number of times to try a DNS query (that has a temporary error)
 		// before giving up. May be short-circuited by deadlines. A zero value
 		// will be turned into 1.
-		DNSTries int
+		DNSTries     int
+		DNSResolvers []string
 
 		SAService        *cmd.GRPCClientConfig
 		VAService        *cmd.GRPCClientConfig
@@ -71,12 +65,30 @@ type config struct {
 		// you need to request a new challenge.
 		PendingAuthorizationLifetimeDays int
 
+		// WeakKeyFile is the path to a JSON file containing truncated RSA modulus
+		// hashes of known easily enumerable keys.
+		WeakKeyFile string
+
+		OrderLifetime cmd.ConfigDuration
+
+		// CTLogGroups contains groupings of CT logs which we want SCTs from.
+		// When we retrieve SCTs we will submit the certificate to each log
+		// in a group and the first SCT returned will be used. This allows
+		// us to comply with Chrome CT policy which requires one SCT from a
+		// Google log and one SCT from any other log included in their policy.
+		// NOTE: CTLogGroups is depreciated in favor of CTLogGroups2.
+		CTLogGroups  [][]cmd.LogDescription
+		CTLogGroups2 []cmd.CTGroup
+		// InformationalCTLogs are a set of CT logs we will always submit to
+		// but won't ever use the SCTs from. This may be because we want to
+		// test them or because they are not yet approved by a browser/root
+		// program but we still want our certs to end up there.
+		InformationalCTLogs []cmd.LogDescription
+
 		Features map[string]bool
 	}
 
 	PA cmd.PAConfig
-
-	Statsd cmd.StatsdConfig
 
 	Syslog cmd.SyslogConfig
 
@@ -102,10 +114,9 @@ func main() {
 	err = features.Set(c.RA.Features)
 	cmd.FailOnError(err, "Failed to set feature flags")
 
-	stats, logger := cmd.StatsAndLogging(c.Statsd, c.Syslog)
-	scope := metrics.NewStatsdScope(stats, "RA")
+	scope, logger := cmd.StatsAndLogging(c.Syslog, c.RA.DebugAddr)
 	defer logger.AuditPanic()
-	logger.Info(cmd.VersionString(clientName))
+	logger.Info(cmd.VersionString())
 
 	// Validate PA config and set defaults if needed
 	cmd.FailOnError(c.PA.CheckChallenges(), "Invalid PA configuration")
@@ -119,33 +130,55 @@ func main() {
 	err = pa.SetHostnamePolicyFile(c.RA.HostnamePolicyFile)
 	cmd.FailOnError(err, "Couldn't load hostname policy file")
 
-	var tls *tls.Config
-	if c.RA.TLS.CertFile != nil {
-		tls, err = c.RA.TLS.Load()
-		cmd.FailOnError(err, "TLS config")
+	if c.PA.ChallengesWhitelistFile != "" {
+		err = pa.SetChallengesWhitelistFile(c.PA.ChallengesWhitelistFile)
+		cmd.FailOnError(err, "Couldn't load challenges whitelist file")
+	} else {
+		logger.Info("No challengesWhitelistFile given, not loading")
 	}
 
-	vaConn, err := bgrpc.ClientSetup(c.RA.VAService, tls, scope)
+	tlsConfig, err := c.RA.TLS.Load()
+	cmd.FailOnError(err, "TLS config")
+
+	clientMetrics := bgrpc.NewClientMetrics(scope)
+	vaConn, err := bgrpc.ClientSetup(c.RA.VAService, tlsConfig, clientMetrics)
 	cmd.FailOnError(err, "Unable to create VA client")
 	vac := bgrpc.NewValidationAuthorityGRPCClient(vaConn)
 
-	caConn, err := bgrpc.ClientSetup(c.RA.CAService, tls, scope)
+	caaClient := vaPB.NewCAAClient(vaConn)
+
+	caConn, err := bgrpc.ClientSetup(c.RA.CAService, tlsConfig, clientMetrics)
 	cmd.FailOnError(err, "Unable to create CA client")
 	// Build a CA client that is only capable of issuing certificates, not
 	// signing OCSP. TODO(jsha): Once we've fully moved to gRPC, replace this
 	// with a plain caPB.NewCertificateAuthorityClient.
 	cac := bgrpc.NewCertificateAuthorityClient(caPB.NewCertificateAuthorityClient(caConn), nil)
 
-	var pubc core.Publisher
-	if c.RA.PublisherService != nil {
-		conn, err := bgrpc.ClientSetup(c.RA.PublisherService, tls, scope)
-		cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to Publisher")
-		pubc = bgrpc.NewPublisherClientWrapper(pubPB.NewPublisherClient(conn))
+	raConn, err := bgrpc.ClientSetup(c.RA.PublisherService, tlsConfig, clientMetrics)
+	cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to Publisher")
+	pubc := bgrpc.NewPublisherClientWrapper(pubPB.NewPublisherClient(raConn))
+
+	var ctp *ctpolicy.CTPolicy
+	conn, err := bgrpc.ClientSetup(c.RA.PublisherService, tlsConfig, clientMetrics)
+	cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to Publisher")
+	pubc = bgrpc.NewPublisherClientWrapper(pubPB.NewPublisherClient(conn))
+
+	if c.RA.CTLogGroups != nil {
+		groups := make([]cmd.CTGroup, len(c.RA.CTLogGroups))
+		for i, logs := range c.RA.CTLogGroups {
+			groups[i] = cmd.CTGroup{
+				Name: fmt.Sprintf("%d", i),
+				Logs: logs,
+			}
+		}
+		ctp = ctpolicy.New(pubc, groups, nil, logger)
+	} else if c.RA.CTLogGroups2 != nil {
+		ctp = ctpolicy.New(pubc, c.RA.CTLogGroups2, c.RA.InformationalCTLogs, logger)
 	}
 
-	conn, err := bgrpc.ClientSetup(c.RA.SAService, tls, scope)
+	saConn, err := bgrpc.ClientSetup(c.RA.SAService, tlsConfig, clientMetrics)
 	cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to SA")
-	sac := bgrpc.NewStorageAuthorityClient(sapb.NewStorageAuthorityClient(conn))
+	sac := bgrpc.NewStorageAuthorityClient(sapb.NewStorageAuthorityClient(saConn))
 
 	// TODO(patf): remove once RA.authorizationLifetimeDays is deployed
 	authorizationLifetime := 300 * 24 * time.Hour
@@ -159,18 +192,25 @@ func main() {
 		pendingAuthorizationLifetime = time.Duration(c.RA.PendingAuthorizationLifetimeDays) * 24 * time.Hour
 	}
 
+	kp, err := goodkey.NewKeyPolicy(c.RA.WeakKeyFile)
+	cmd.FailOnError(err, "Unable to create key policy")
+
 	rai := ra.NewRegistrationAuthorityImpl(
-		clock.Default(),
+		cmd.Clock(),
 		logger,
 		scope,
 		c.RA.MaxContactsPerRegistration,
-		goodkey.NewKeyPolicy(),
+		kp,
 		c.RA.MaxNames,
 		c.RA.DoNotForceCN,
 		c.RA.ReuseValidAuthz,
 		authorizationLifetime,
 		pendingAuthorizationLifetime,
-		pubc)
+		pubc,
+		caaClient,
+		c.RA.OrderLifetime.Duration,
+		ctp,
+	)
 
 	policyErr := rai.SetRateLimitPoliciesFile(c.RA.RateLimitPoliciesFilename)
 	cmd.FailOnError(policyErr, "Couldn't load rate limit policies file")
@@ -182,20 +222,22 @@ func main() {
 	if dnsTries < 1 {
 		dnsTries = 1
 	}
+	if len(c.Common.DNSResolver) != 0 {
+		c.RA.DNSResolvers = append(c.RA.DNSResolvers, c.Common.DNSResolver)
+	}
 	if !c.Common.DNSAllowLoopbackAddresses {
-		rai.DNSResolver = bdns.NewDNSResolverImpl(
+		rai.DNSClient = bdns.NewDNSClientImpl(
 			raDNSTimeout,
-			[]string{c.Common.DNSResolver},
-			nil,
+			c.RA.DNSResolvers,
 			scope,
-			clock.Default(),
+			cmd.Clock(),
 			dnsTries)
 	} else {
-		rai.DNSResolver = bdns.NewTestDNSResolverImpl(
+		rai.DNSClient = bdns.NewTestDNSClientImpl(
 			raDNSTimeout,
-			[]string{c.Common.DNSResolver},
+			c.RA.DNSResolvers,
 			scope,
-			clock.Default(),
+			cmd.Clock(),
 			dnsTries)
 	}
 
@@ -206,27 +248,14 @@ func main() {
 	err = rai.UpdateIssuedCountForever()
 	cmd.FailOnError(err, "Updating total issuance count")
 
-	var grpcSrv *grpc.Server
-	if c.RA.GRPC != nil {
-		var listener net.Listener
-		grpcSrv, listener, err = bgrpc.NewServer(c.RA.GRPC, tls, scope)
-		cmd.FailOnError(err, "Unable to setup RA gRPC server")
-		gw := bgrpc.NewRegistrationAuthorityServer(rai)
-		rapb.RegisterRegistrationAuthorityServer(grpcSrv, gw)
-		go func() {
-			err = grpcSrv.Serve(listener)
-			cmd.FailOnError(err, "RA gRPC service failed")
-		}()
-	}
+	serverMetrics := bgrpc.NewServerMetrics(scope)
+	grpcSrv, listener, err := bgrpc.NewServer(c.RA.GRPC, tlsConfig, serverMetrics)
+	cmd.FailOnError(err, "Unable to setup RA gRPC server")
+	gw := bgrpc.NewRegistrationAuthorityServer(rai)
+	rapb.RegisterRegistrationAuthorityServer(grpcSrv, gw)
 
-	go cmd.CatchSignals(logger, func() {
-		if grpcSrv != nil {
-			grpcSrv.GracefulStop()
-		}
-	})
+	go cmd.CatchSignals(logger, grpcSrv.GracefulStop)
 
-	go cmd.DebugServer(c.RA.DebugAddr)
-	go cmd.ProfileCmd(scope)
-
-	select {}
+	err = cmd.FilterShutdownErrors(grpcSrv.Serve(listener))
+	cmd.FailOnError(err, "RA gRPC service failed")
 }

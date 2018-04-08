@@ -10,8 +10,9 @@ It is generated from these files:
 
 It has these top-level messages:
 	RegistrationID
-	JsonWebKey
+	JSONWebKey
 	AuthorizationID
+	GetPendingAuthorizationRequest
 	GetValidAuthorizationsRequest
 	ValidAuthorizations
 	CertificateStatus
@@ -22,9 +23,11 @@ It has these top-level messages:
 	CountByNames
 	CountRegistrationsByIPRequest
 	CountInvalidAuthorizationsRequest
+	CountOrdersRequest
 	GetSCTReceiptRequest
 	CountFQDNSetsRequest
 	FQDNSetExistsRequest
+	PreviousCertificateExistsRequest
 	Exists
 	MarkCertificateRevokedRequest
 	AddCertificateRequest
@@ -32,6 +35,13 @@ It has these top-level messages:
 	SignedCertificateTimestamp
 	RevokeAuthorizationsByDomainRequest
 	RevokeAuthorizationsByDomainResponse
+	OrderRequest
+	GetValidOrderAuthorizationsRequest
+	GetOrderForNamesRequest
+	GetAuthorizationsRequest
+	Authorizations
+	AddPendingAuthorizationsRequest
+	AuthorizationIDs
 */
 package proto
 
@@ -73,17 +83,17 @@ func (m *RegistrationID) GetId() int64 {
 	return 0
 }
 
-type JsonWebKey struct {
+type JSONWebKey struct {
 	Jwk              []byte `protobuf:"bytes,1,opt,name=jwk" json:"jwk,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
 }
 
-func (m *JsonWebKey) Reset()                    { *m = JsonWebKey{} }
-func (m *JsonWebKey) String() string            { return proto1.CompactTextString(m) }
-func (*JsonWebKey) ProtoMessage()               {}
-func (*JsonWebKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (m *JSONWebKey) Reset()                    { *m = JSONWebKey{} }
+func (m *JSONWebKey) String() string            { return proto1.CompactTextString(m) }
+func (*JSONWebKey) ProtoMessage()               {}
+func (*JSONWebKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-func (m *JsonWebKey) GetJwk() []byte {
+func (m *JSONWebKey) GetJwk() []byte {
 	if m != nil {
 		return m.Jwk
 	}
@@ -107,6 +117,48 @@ func (m *AuthorizationID) GetId() string {
 	return ""
 }
 
+type GetPendingAuthorizationRequest struct {
+	RegistrationID  *int64  `protobuf:"varint,1,opt,name=registrationID" json:"registrationID,omitempty"`
+	IdentifierType  *string `protobuf:"bytes,2,opt,name=identifierType" json:"identifierType,omitempty"`
+	IdentifierValue *string `protobuf:"bytes,3,opt,name=identifierValue" json:"identifierValue,omitempty"`
+	// Result must be valid until at least this Unix timestamp (nanos)
+	ValidUntil       *int64 `protobuf:"varint,4,opt,name=validUntil" json:"validUntil,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *GetPendingAuthorizationRequest) Reset()                    { *m = GetPendingAuthorizationRequest{} }
+func (m *GetPendingAuthorizationRequest) String() string            { return proto1.CompactTextString(m) }
+func (*GetPendingAuthorizationRequest) ProtoMessage()               {}
+func (*GetPendingAuthorizationRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+
+func (m *GetPendingAuthorizationRequest) GetRegistrationID() int64 {
+	if m != nil && m.RegistrationID != nil {
+		return *m.RegistrationID
+	}
+	return 0
+}
+
+func (m *GetPendingAuthorizationRequest) GetIdentifierType() string {
+	if m != nil && m.IdentifierType != nil {
+		return *m.IdentifierType
+	}
+	return ""
+}
+
+func (m *GetPendingAuthorizationRequest) GetIdentifierValue() string {
+	if m != nil && m.IdentifierValue != nil {
+		return *m.IdentifierValue
+	}
+	return ""
+}
+
+func (m *GetPendingAuthorizationRequest) GetValidUntil() int64 {
+	if m != nil && m.ValidUntil != nil {
+		return *m.ValidUntil
+	}
+	return 0
+}
+
 type GetValidAuthorizationsRequest struct {
 	RegistrationID   *int64   `protobuf:"varint,1,opt,name=registrationID" json:"registrationID,omitempty"`
 	Domains          []string `protobuf:"bytes,2,rep,name=domains" json:"domains,omitempty"`
@@ -117,7 +169,7 @@ type GetValidAuthorizationsRequest struct {
 func (m *GetValidAuthorizationsRequest) Reset()                    { *m = GetValidAuthorizationsRequest{} }
 func (m *GetValidAuthorizationsRequest) String() string            { return proto1.CompactTextString(m) }
 func (*GetValidAuthorizationsRequest) ProtoMessage()               {}
-func (*GetValidAuthorizationsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*GetValidAuthorizationsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *GetValidAuthorizationsRequest) GetRegistrationID() int64 {
 	if m != nil && m.RegistrationID != nil {
@@ -148,7 +200,7 @@ type ValidAuthorizations struct {
 func (m *ValidAuthorizations) Reset()                    { *m = ValidAuthorizations{} }
 func (m *ValidAuthorizations) String() string            { return proto1.CompactTextString(m) }
 func (*ValidAuthorizations) ProtoMessage()               {}
-func (*ValidAuthorizations) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*ValidAuthorizations) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 func (m *ValidAuthorizations) GetValid() []*ValidAuthorizations_MapElement {
 	if m != nil {
@@ -167,7 +219,7 @@ func (m *ValidAuthorizations_MapElement) Reset()         { *m = ValidAuthorizati
 func (m *ValidAuthorizations_MapElement) String() string { return proto1.CompactTextString(m) }
 func (*ValidAuthorizations_MapElement) ProtoMessage()    {}
 func (*ValidAuthorizations_MapElement) Descriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{4, 0}
+	return fileDescriptor0, []int{5, 0}
 }
 
 func (m *ValidAuthorizations_MapElement) GetDomain() string {
@@ -201,7 +253,7 @@ type CertificateStatus struct {
 func (m *CertificateStatus) Reset()                    { *m = CertificateStatus{} }
 func (m *CertificateStatus) String() string            { return proto1.CompactTextString(m) }
 func (*CertificateStatus) ProtoMessage()               {}
-func (*CertificateStatus) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*CertificateStatus) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 func (m *CertificateStatus) GetSerial() string {
 	if m != nil && m.Serial != nil {
@@ -281,7 +333,7 @@ type Serial struct {
 func (m *Serial) Reset()                    { *m = Serial{} }
 func (m *Serial) String() string            { return proto1.CompactTextString(m) }
 func (*Serial) ProtoMessage()               {}
-func (*Serial) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*Serial) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *Serial) GetSerial() string {
 	if m != nil && m.Serial != nil {
@@ -299,7 +351,7 @@ type Range struct {
 func (m *Range) Reset()                    { *m = Range{} }
 func (m *Range) String() string            { return proto1.CompactTextString(m) }
 func (*Range) ProtoMessage()               {}
-func (*Range) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*Range) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
 func (m *Range) GetEarliest() int64 {
 	if m != nil && m.Earliest != nil {
@@ -323,7 +375,7 @@ type Count struct {
 func (m *Count) Reset()                    { *m = Count{} }
 func (m *Count) String() string            { return proto1.CompactTextString(m) }
 func (*Count) ProtoMessage()               {}
-func (*Count) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*Count) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *Count) GetCount() int64 {
 	if m != nil && m.Count != nil {
@@ -338,10 +390,12 @@ type CountCertificatesByNamesRequest struct {
 	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (m *CountCertificatesByNamesRequest) Reset()                    { *m = CountCertificatesByNamesRequest{} }
-func (m *CountCertificatesByNamesRequest) String() string            { return proto1.CompactTextString(m) }
-func (*CountCertificatesByNamesRequest) ProtoMessage()               {}
-func (*CountCertificatesByNamesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (m *CountCertificatesByNamesRequest) Reset()         { *m = CountCertificatesByNamesRequest{} }
+func (m *CountCertificatesByNamesRequest) String() string { return proto1.CompactTextString(m) }
+func (*CountCertificatesByNamesRequest) ProtoMessage()    {}
+func (*CountCertificatesByNamesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{10}
+}
 
 func (m *CountCertificatesByNamesRequest) GetRange() *Range {
 	if m != nil {
@@ -365,7 +419,7 @@ type CountByNames struct {
 func (m *CountByNames) Reset()                    { *m = CountByNames{} }
 func (m *CountByNames) String() string            { return proto1.CompactTextString(m) }
 func (*CountByNames) ProtoMessage()               {}
-func (*CountByNames) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*CountByNames) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 func (m *CountByNames) GetCountByNames() []*CountByNames_MapElement {
 	if m != nil {
@@ -383,7 +437,7 @@ type CountByNames_MapElement struct {
 func (m *CountByNames_MapElement) Reset()                    { *m = CountByNames_MapElement{} }
 func (m *CountByNames_MapElement) String() string            { return proto1.CompactTextString(m) }
 func (*CountByNames_MapElement) ProtoMessage()               {}
-func (*CountByNames_MapElement) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10, 0} }
+func (*CountByNames_MapElement) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11, 0} }
 
 func (m *CountByNames_MapElement) GetName() string {
 	if m != nil && m.Name != nil {
@@ -408,7 +462,7 @@ type CountRegistrationsByIPRequest struct {
 func (m *CountRegistrationsByIPRequest) Reset()                    { *m = CountRegistrationsByIPRequest{} }
 func (m *CountRegistrationsByIPRequest) String() string            { return proto1.CompactTextString(m) }
 func (*CountRegistrationsByIPRequest) ProtoMessage()               {}
-func (*CountRegistrationsByIPRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*CountRegistrationsByIPRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *CountRegistrationsByIPRequest) GetIp() []byte {
 	if m != nil {
@@ -436,7 +490,7 @@ func (m *CountInvalidAuthorizationsRequest) Reset()         { *m = CountInvalidA
 func (m *CountInvalidAuthorizationsRequest) String() string { return proto1.CompactTextString(m) }
 func (*CountInvalidAuthorizationsRequest) ProtoMessage()    {}
 func (*CountInvalidAuthorizationsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{12}
+	return fileDescriptor0, []int{13}
 }
 
 func (m *CountInvalidAuthorizationsRequest) GetRegistrationID() int64 {
@@ -460,6 +514,31 @@ func (m *CountInvalidAuthorizationsRequest) GetRange() *Range {
 	return nil
 }
 
+type CountOrdersRequest struct {
+	AccountID        *int64 `protobuf:"varint,1,opt,name=accountID" json:"accountID,omitempty"`
+	Range            *Range `protobuf:"bytes,2,opt,name=range" json:"range,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *CountOrdersRequest) Reset()                    { *m = CountOrdersRequest{} }
+func (m *CountOrdersRequest) String() string            { return proto1.CompactTextString(m) }
+func (*CountOrdersRequest) ProtoMessage()               {}
+func (*CountOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+
+func (m *CountOrdersRequest) GetAccountID() int64 {
+	if m != nil && m.AccountID != nil {
+		return *m.AccountID
+	}
+	return 0
+}
+
+func (m *CountOrdersRequest) GetRange() *Range {
+	if m != nil {
+		return m.Range
+	}
+	return nil
+}
+
 type GetSCTReceiptRequest struct {
 	Serial           *string `protobuf:"bytes,1,opt,name=serial" json:"serial,omitempty"`
 	LogID            *string `protobuf:"bytes,2,opt,name=logID" json:"logID,omitempty"`
@@ -469,7 +548,7 @@ type GetSCTReceiptRequest struct {
 func (m *GetSCTReceiptRequest) Reset()                    { *m = GetSCTReceiptRequest{} }
 func (m *GetSCTReceiptRequest) String() string            { return proto1.CompactTextString(m) }
 func (*GetSCTReceiptRequest) ProtoMessage()               {}
-func (*GetSCTReceiptRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*GetSCTReceiptRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 func (m *GetSCTReceiptRequest) GetSerial() string {
 	if m != nil && m.Serial != nil {
@@ -494,7 +573,7 @@ type CountFQDNSetsRequest struct {
 func (m *CountFQDNSetsRequest) Reset()                    { *m = CountFQDNSetsRequest{} }
 func (m *CountFQDNSetsRequest) String() string            { return proto1.CompactTextString(m) }
 func (*CountFQDNSetsRequest) ProtoMessage()               {}
-func (*CountFQDNSetsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*CountFQDNSetsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
 func (m *CountFQDNSetsRequest) GetWindow() int64 {
 	if m != nil && m.Window != nil {
@@ -518,13 +597,40 @@ type FQDNSetExistsRequest struct {
 func (m *FQDNSetExistsRequest) Reset()                    { *m = FQDNSetExistsRequest{} }
 func (m *FQDNSetExistsRequest) String() string            { return proto1.CompactTextString(m) }
 func (*FQDNSetExistsRequest) ProtoMessage()               {}
-func (*FQDNSetExistsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*FQDNSetExistsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
 func (m *FQDNSetExistsRequest) GetDomains() []string {
 	if m != nil {
 		return m.Domains
 	}
 	return nil
+}
+
+type PreviousCertificateExistsRequest struct {
+	Domain           *string `protobuf:"bytes,1,opt,name=domain" json:"domain,omitempty"`
+	RegID            *int64  `protobuf:"varint,2,opt,name=regID" json:"regID,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *PreviousCertificateExistsRequest) Reset()         { *m = PreviousCertificateExistsRequest{} }
+func (m *PreviousCertificateExistsRequest) String() string { return proto1.CompactTextString(m) }
+func (*PreviousCertificateExistsRequest) ProtoMessage()    {}
+func (*PreviousCertificateExistsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{18}
+}
+
+func (m *PreviousCertificateExistsRequest) GetDomain() string {
+	if m != nil && m.Domain != nil {
+		return *m.Domain
+	}
+	return ""
+}
+
+func (m *PreviousCertificateExistsRequest) GetRegID() int64 {
+	if m != nil && m.RegID != nil {
+		return *m.RegID
+	}
+	return 0
 }
 
 type Exists struct {
@@ -535,7 +641,7 @@ type Exists struct {
 func (m *Exists) Reset()                    { *m = Exists{} }
 func (m *Exists) String() string            { return proto1.CompactTextString(m) }
 func (*Exists) ProtoMessage()               {}
-func (*Exists) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*Exists) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
 func (m *Exists) GetExists() bool {
 	if m != nil && m.Exists != nil {
@@ -553,7 +659,7 @@ type MarkCertificateRevokedRequest struct {
 func (m *MarkCertificateRevokedRequest) Reset()                    { *m = MarkCertificateRevokedRequest{} }
 func (m *MarkCertificateRevokedRequest) String() string            { return proto1.CompactTextString(m) }
 func (*MarkCertificateRevokedRequest) ProtoMessage()               {}
-func (*MarkCertificateRevokedRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*MarkCertificateRevokedRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
 func (m *MarkCertificateRevokedRequest) GetSerial() string {
 	if m != nil && m.Serial != nil {
@@ -581,7 +687,7 @@ type AddCertificateRequest struct {
 func (m *AddCertificateRequest) Reset()                    { *m = AddCertificateRequest{} }
 func (m *AddCertificateRequest) String() string            { return proto1.CompactTextString(m) }
 func (*AddCertificateRequest) ProtoMessage()               {}
-func (*AddCertificateRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+func (*AddCertificateRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
 
 func (m *AddCertificateRequest) GetDer() []byte {
 	if m != nil {
@@ -612,7 +718,7 @@ type AddCertificateResponse struct {
 func (m *AddCertificateResponse) Reset()                    { *m = AddCertificateResponse{} }
 func (m *AddCertificateResponse) String() string            { return proto1.CompactTextString(m) }
 func (*AddCertificateResponse) ProtoMessage()               {}
-func (*AddCertificateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+func (*AddCertificateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
 
 func (m *AddCertificateResponse) GetDigest() string {
 	if m != nil && m.Digest != nil {
@@ -635,7 +741,7 @@ type SignedCertificateTimestamp struct {
 func (m *SignedCertificateTimestamp) Reset()                    { *m = SignedCertificateTimestamp{} }
 func (m *SignedCertificateTimestamp) String() string            { return proto1.CompactTextString(m) }
 func (*SignedCertificateTimestamp) ProtoMessage()               {}
-func (*SignedCertificateTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+func (*SignedCertificateTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
 
 func (m *SignedCertificateTimestamp) GetId() int64 {
 	if m != nil && m.Id != nil {
@@ -695,7 +801,7 @@ func (m *RevokeAuthorizationsByDomainRequest) Reset()         { *m = RevokeAutho
 func (m *RevokeAuthorizationsByDomainRequest) String() string { return proto1.CompactTextString(m) }
 func (*RevokeAuthorizationsByDomainRequest) ProtoMessage()    {}
 func (*RevokeAuthorizationsByDomainRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{21}
+	return fileDescriptor0, []int{24}
 }
 
 func (m *RevokeAuthorizationsByDomainRequest) GetDomain() string {
@@ -715,7 +821,7 @@ func (m *RevokeAuthorizationsByDomainResponse) Reset()         { *m = RevokeAuth
 func (m *RevokeAuthorizationsByDomainResponse) String() string { return proto1.CompactTextString(m) }
 func (*RevokeAuthorizationsByDomainResponse) ProtoMessage()    {}
 func (*RevokeAuthorizationsByDomainResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{22}
+	return fileDescriptor0, []int{25}
 }
 
 func (m *RevokeAuthorizationsByDomainResponse) GetFinalized() int64 {
@@ -732,10 +838,199 @@ func (m *RevokeAuthorizationsByDomainResponse) GetPending() int64 {
 	return 0
 }
 
+type OrderRequest struct {
+	Id               *int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *OrderRequest) Reset()                    { *m = OrderRequest{} }
+func (m *OrderRequest) String() string            { return proto1.CompactTextString(m) }
+func (*OrderRequest) ProtoMessage()               {}
+func (*OrderRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+
+func (m *OrderRequest) GetId() int64 {
+	if m != nil && m.Id != nil {
+		return *m.Id
+	}
+	return 0
+}
+
+type GetValidOrderAuthorizationsRequest struct {
+	Id               *int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	AcctID           *int64 `protobuf:"varint,2,opt,name=acctID" json:"acctID,omitempty"`
+	XXX_unrecognized []byte `json:"-"`
+}
+
+func (m *GetValidOrderAuthorizationsRequest) Reset()         { *m = GetValidOrderAuthorizationsRequest{} }
+func (m *GetValidOrderAuthorizationsRequest) String() string { return proto1.CompactTextString(m) }
+func (*GetValidOrderAuthorizationsRequest) ProtoMessage()    {}
+func (*GetValidOrderAuthorizationsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{27}
+}
+
+func (m *GetValidOrderAuthorizationsRequest) GetId() int64 {
+	if m != nil && m.Id != nil {
+		return *m.Id
+	}
+	return 0
+}
+
+func (m *GetValidOrderAuthorizationsRequest) GetAcctID() int64 {
+	if m != nil && m.AcctID != nil {
+		return *m.AcctID
+	}
+	return 0
+}
+
+type GetOrderForNamesRequest struct {
+	AcctID           *int64   `protobuf:"varint,1,opt,name=acctID" json:"acctID,omitempty"`
+	Names            []string `protobuf:"bytes,2,rep,name=names" json:"names,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
+}
+
+func (m *GetOrderForNamesRequest) Reset()                    { *m = GetOrderForNamesRequest{} }
+func (m *GetOrderForNamesRequest) String() string            { return proto1.CompactTextString(m) }
+func (*GetOrderForNamesRequest) ProtoMessage()               {}
+func (*GetOrderForNamesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+
+func (m *GetOrderForNamesRequest) GetAcctID() int64 {
+	if m != nil && m.AcctID != nil {
+		return *m.AcctID
+	}
+	return 0
+}
+
+func (m *GetOrderForNamesRequest) GetNames() []string {
+	if m != nil {
+		return m.Names
+	}
+	return nil
+}
+
+type GetAuthorizationsRequest struct {
+	RegistrationID   *int64   `protobuf:"varint,1,opt,name=registrationID" json:"registrationID,omitempty"`
+	Domains          []string `protobuf:"bytes,2,rep,name=domains" json:"domains,omitempty"`
+	Now              *int64   `protobuf:"varint,3,opt,name=now" json:"now,omitempty"`
+	RequireV2Authzs  *bool    `protobuf:"varint,4,opt,name=requireV2Authzs" json:"requireV2Authzs,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
+}
+
+func (m *GetAuthorizationsRequest) Reset()                    { *m = GetAuthorizationsRequest{} }
+func (m *GetAuthorizationsRequest) String() string            { return proto1.CompactTextString(m) }
+func (*GetAuthorizationsRequest) ProtoMessage()               {}
+func (*GetAuthorizationsRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+
+func (m *GetAuthorizationsRequest) GetRegistrationID() int64 {
+	if m != nil && m.RegistrationID != nil {
+		return *m.RegistrationID
+	}
+	return 0
+}
+
+func (m *GetAuthorizationsRequest) GetDomains() []string {
+	if m != nil {
+		return m.Domains
+	}
+	return nil
+}
+
+func (m *GetAuthorizationsRequest) GetNow() int64 {
+	if m != nil && m.Now != nil {
+		return *m.Now
+	}
+	return 0
+}
+
+func (m *GetAuthorizationsRequest) GetRequireV2Authzs() bool {
+	if m != nil && m.RequireV2Authzs != nil {
+		return *m.RequireV2Authzs
+	}
+	return false
+}
+
+type Authorizations struct {
+	Authz            []*Authorizations_MapElement `protobuf:"bytes,1,rep,name=authz" json:"authz,omitempty"`
+	XXX_unrecognized []byte                       `json:"-"`
+}
+
+func (m *Authorizations) Reset()                    { *m = Authorizations{} }
+func (m *Authorizations) String() string            { return proto1.CompactTextString(m) }
+func (*Authorizations) ProtoMessage()               {}
+func (*Authorizations) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+
+func (m *Authorizations) GetAuthz() []*Authorizations_MapElement {
+	if m != nil {
+		return m.Authz
+	}
+	return nil
+}
+
+type Authorizations_MapElement struct {
+	Domain           *string             `protobuf:"bytes,1,opt,name=domain" json:"domain,omitempty"`
+	Authz            *core.Authorization `protobuf:"bytes,2,opt,name=authz" json:"authz,omitempty"`
+	XXX_unrecognized []byte              `json:"-"`
+}
+
+func (m *Authorizations_MapElement) Reset()                    { *m = Authorizations_MapElement{} }
+func (m *Authorizations_MapElement) String() string            { return proto1.CompactTextString(m) }
+func (*Authorizations_MapElement) ProtoMessage()               {}
+func (*Authorizations_MapElement) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30, 0} }
+
+func (m *Authorizations_MapElement) GetDomain() string {
+	if m != nil && m.Domain != nil {
+		return *m.Domain
+	}
+	return ""
+}
+
+func (m *Authorizations_MapElement) GetAuthz() *core.Authorization {
+	if m != nil {
+		return m.Authz
+	}
+	return nil
+}
+
+type AddPendingAuthorizationsRequest struct {
+	Authz            []*core.Authorization `protobuf:"bytes,1,rep,name=authz" json:"authz,omitempty"`
+	XXX_unrecognized []byte                `json:"-"`
+}
+
+func (m *AddPendingAuthorizationsRequest) Reset()         { *m = AddPendingAuthorizationsRequest{} }
+func (m *AddPendingAuthorizationsRequest) String() string { return proto1.CompactTextString(m) }
+func (*AddPendingAuthorizationsRequest) ProtoMessage()    {}
+func (*AddPendingAuthorizationsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{31}
+}
+
+func (m *AddPendingAuthorizationsRequest) GetAuthz() []*core.Authorization {
+	if m != nil {
+		return m.Authz
+	}
+	return nil
+}
+
+type AuthorizationIDs struct {
+	Ids              []string `protobuf:"bytes,1,rep,name=ids" json:"ids,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
+}
+
+func (m *AuthorizationIDs) Reset()                    { *m = AuthorizationIDs{} }
+func (m *AuthorizationIDs) String() string            { return proto1.CompactTextString(m) }
+func (*AuthorizationIDs) ProtoMessage()               {}
+func (*AuthorizationIDs) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
+
+func (m *AuthorizationIDs) GetIds() []string {
+	if m != nil {
+		return m.Ids
+	}
+	return nil
+}
+
 func init() {
 	proto1.RegisterType((*RegistrationID)(nil), "sa.RegistrationID")
-	proto1.RegisterType((*JsonWebKey)(nil), "sa.JsonWebKey")
+	proto1.RegisterType((*JSONWebKey)(nil), "sa.JSONWebKey")
 	proto1.RegisterType((*AuthorizationID)(nil), "sa.AuthorizationID")
+	proto1.RegisterType((*GetPendingAuthorizationRequest)(nil), "sa.GetPendingAuthorizationRequest")
 	proto1.RegisterType((*GetValidAuthorizationsRequest)(nil), "sa.GetValidAuthorizationsRequest")
 	proto1.RegisterType((*ValidAuthorizations)(nil), "sa.ValidAuthorizations")
 	proto1.RegisterType((*ValidAuthorizations_MapElement)(nil), "sa.ValidAuthorizations.MapElement")
@@ -748,9 +1043,11 @@ func init() {
 	proto1.RegisterType((*CountByNames_MapElement)(nil), "sa.CountByNames.MapElement")
 	proto1.RegisterType((*CountRegistrationsByIPRequest)(nil), "sa.CountRegistrationsByIPRequest")
 	proto1.RegisterType((*CountInvalidAuthorizationsRequest)(nil), "sa.CountInvalidAuthorizationsRequest")
+	proto1.RegisterType((*CountOrdersRequest)(nil), "sa.CountOrdersRequest")
 	proto1.RegisterType((*GetSCTReceiptRequest)(nil), "sa.GetSCTReceiptRequest")
 	proto1.RegisterType((*CountFQDNSetsRequest)(nil), "sa.CountFQDNSetsRequest")
 	proto1.RegisterType((*FQDNSetExistsRequest)(nil), "sa.FQDNSetExistsRequest")
+	proto1.RegisterType((*PreviousCertificateExistsRequest)(nil), "sa.PreviousCertificateExistsRequest")
 	proto1.RegisterType((*Exists)(nil), "sa.Exists")
 	proto1.RegisterType((*MarkCertificateRevokedRequest)(nil), "sa.MarkCertificateRevokedRequest")
 	proto1.RegisterType((*AddCertificateRequest)(nil), "sa.AddCertificateRequest")
@@ -758,6 +1055,14 @@ func init() {
 	proto1.RegisterType((*SignedCertificateTimestamp)(nil), "sa.SignedCertificateTimestamp")
 	proto1.RegisterType((*RevokeAuthorizationsByDomainRequest)(nil), "sa.RevokeAuthorizationsByDomainRequest")
 	proto1.RegisterType((*RevokeAuthorizationsByDomainResponse)(nil), "sa.RevokeAuthorizationsByDomainResponse")
+	proto1.RegisterType((*OrderRequest)(nil), "sa.OrderRequest")
+	proto1.RegisterType((*GetValidOrderAuthorizationsRequest)(nil), "sa.GetValidOrderAuthorizationsRequest")
+	proto1.RegisterType((*GetOrderForNamesRequest)(nil), "sa.GetOrderForNamesRequest")
+	proto1.RegisterType((*GetAuthorizationsRequest)(nil), "sa.GetAuthorizationsRequest")
+	proto1.RegisterType((*Authorizations)(nil), "sa.Authorizations")
+	proto1.RegisterType((*Authorizations_MapElement)(nil), "sa.Authorizations.MapElement")
+	proto1.RegisterType((*AddPendingAuthorizationsRequest)(nil), "sa.AddPendingAuthorizationsRequest")
+	proto1.RegisterType((*AuthorizationIDs)(nil), "sa.AuthorizationIDs")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -773,21 +1078,26 @@ const _ = grpc.SupportPackageIsVersion4
 type StorageAuthorityClient interface {
 	// Getters
 	GetRegistration(ctx context.Context, in *RegistrationID, opts ...grpc.CallOption) (*core.Registration, error)
-	GetRegistrationByKey(ctx context.Context, in *JsonWebKey, opts ...grpc.CallOption) (*core.Registration, error)
+	GetRegistrationByKey(ctx context.Context, in *JSONWebKey, opts ...grpc.CallOption) (*core.Registration, error)
 	GetAuthorization(ctx context.Context, in *AuthorizationID, opts ...grpc.CallOption) (*core.Authorization, error)
+	GetPendingAuthorization(ctx context.Context, in *GetPendingAuthorizationRequest, opts ...grpc.CallOption) (*core.Authorization, error)
 	GetValidAuthorizations(ctx context.Context, in *GetValidAuthorizationsRequest, opts ...grpc.CallOption) (*ValidAuthorizations, error)
 	GetCertificate(ctx context.Context, in *Serial, opts ...grpc.CallOption) (*core.Certificate, error)
 	GetCertificateStatus(ctx context.Context, in *Serial, opts ...grpc.CallOption) (*CertificateStatus, error)
 	CountCertificatesRange(ctx context.Context, in *Range, opts ...grpc.CallOption) (*Count, error)
 	CountCertificatesByNames(ctx context.Context, in *CountCertificatesByNamesRequest, opts ...grpc.CallOption) (*CountByNames, error)
+	CountCertificatesByExactNames(ctx context.Context, in *CountCertificatesByNamesRequest, opts ...grpc.CallOption) (*CountByNames, error)
 	CountRegistrationsByIP(ctx context.Context, in *CountRegistrationsByIPRequest, opts ...grpc.CallOption) (*Count, error)
+	CountRegistrationsByIPRange(ctx context.Context, in *CountRegistrationsByIPRequest, opts ...grpc.CallOption) (*Count, error)
 	CountPendingAuthorizations(ctx context.Context, in *RegistrationID, opts ...grpc.CallOption) (*Count, error)
+	CountOrders(ctx context.Context, in *CountOrdersRequest, opts ...grpc.CallOption) (*Count, error)
 	// Return a count of authorizations with status "invalid" that belong to
 	// a given registration ID and expire in the given time range.
 	CountInvalidAuthorizations(ctx context.Context, in *CountInvalidAuthorizationsRequest, opts ...grpc.CallOption) (*Count, error)
 	GetSCTReceipt(ctx context.Context, in *GetSCTReceiptRequest, opts ...grpc.CallOption) (*SignedCertificateTimestamp, error)
 	CountFQDNSets(ctx context.Context, in *CountFQDNSetsRequest, opts ...grpc.CallOption) (*Count, error)
 	FQDNSetExists(ctx context.Context, in *FQDNSetExistsRequest, opts ...grpc.CallOption) (*Exists, error)
+	PreviousCertificateExists(ctx context.Context, in *PreviousCertificateExistsRequest, opts ...grpc.CallOption) (*Exists, error)
 	// Adders
 	NewRegistration(ctx context.Context, in *core.Registration, opts ...grpc.CallOption) (*core.Registration, error)
 	UpdateRegistration(ctx context.Context, in *core.Registration, opts ...grpc.CallOption) (*core.Empty, error)
@@ -800,6 +1110,15 @@ type StorageAuthorityClient interface {
 	RevokeAuthorizationsByDomain(ctx context.Context, in *RevokeAuthorizationsByDomainRequest, opts ...grpc.CallOption) (*RevokeAuthorizationsByDomainResponse, error)
 	DeactivateRegistration(ctx context.Context, in *RegistrationID, opts ...grpc.CallOption) (*core.Empty, error)
 	DeactivateAuthorization(ctx context.Context, in *AuthorizationID, opts ...grpc.CallOption) (*core.Empty, error)
+	NewOrder(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Order, error)
+	SetOrderProcessing(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Empty, error)
+	SetOrderError(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Empty, error)
+	FinalizeOrder(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Empty, error)
+	GetOrder(ctx context.Context, in *OrderRequest, opts ...grpc.CallOption) (*core.Order, error)
+	GetValidOrderAuthorizations(ctx context.Context, in *GetValidOrderAuthorizationsRequest, opts ...grpc.CallOption) (*Authorizations, error)
+	GetOrderForNames(ctx context.Context, in *GetOrderForNamesRequest, opts ...grpc.CallOption) (*core.Order, error)
+	GetAuthorizations(ctx context.Context, in *GetAuthorizationsRequest, opts ...grpc.CallOption) (*Authorizations, error)
+	AddPendingAuthorizations(ctx context.Context, in *AddPendingAuthorizationsRequest, opts ...grpc.CallOption) (*AuthorizationIDs, error)
 }
 
 type storageAuthorityClient struct {
@@ -819,7 +1138,7 @@ func (c *storageAuthorityClient) GetRegistration(ctx context.Context, in *Regist
 	return out, nil
 }
 
-func (c *storageAuthorityClient) GetRegistrationByKey(ctx context.Context, in *JsonWebKey, opts ...grpc.CallOption) (*core.Registration, error) {
+func (c *storageAuthorityClient) GetRegistrationByKey(ctx context.Context, in *JSONWebKey, opts ...grpc.CallOption) (*core.Registration, error) {
 	out := new(core.Registration)
 	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetRegistrationByKey", in, out, c.cc, opts...)
 	if err != nil {
@@ -831,6 +1150,15 @@ func (c *storageAuthorityClient) GetRegistrationByKey(ctx context.Context, in *J
 func (c *storageAuthorityClient) GetAuthorization(ctx context.Context, in *AuthorizationID, opts ...grpc.CallOption) (*core.Authorization, error) {
 	out := new(core.Authorization)
 	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetAuthorization", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) GetPendingAuthorization(ctx context.Context, in *GetPendingAuthorizationRequest, opts ...grpc.CallOption) (*core.Authorization, error) {
+	out := new(core.Authorization)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetPendingAuthorization", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -882,6 +1210,15 @@ func (c *storageAuthorityClient) CountCertificatesByNames(ctx context.Context, i
 	return out, nil
 }
 
+func (c *storageAuthorityClient) CountCertificatesByExactNames(ctx context.Context, in *CountCertificatesByNamesRequest, opts ...grpc.CallOption) (*CountByNames, error) {
+	out := new(CountByNames)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/CountCertificatesByExactNames", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *storageAuthorityClient) CountRegistrationsByIP(ctx context.Context, in *CountRegistrationsByIPRequest, opts ...grpc.CallOption) (*Count, error) {
 	out := new(Count)
 	err := grpc.Invoke(ctx, "/sa.StorageAuthority/CountRegistrationsByIP", in, out, c.cc, opts...)
@@ -891,9 +1228,27 @@ func (c *storageAuthorityClient) CountRegistrationsByIP(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *storageAuthorityClient) CountRegistrationsByIPRange(ctx context.Context, in *CountRegistrationsByIPRequest, opts ...grpc.CallOption) (*Count, error) {
+	out := new(Count)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/CountRegistrationsByIPRange", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *storageAuthorityClient) CountPendingAuthorizations(ctx context.Context, in *RegistrationID, opts ...grpc.CallOption) (*Count, error) {
 	out := new(Count)
 	err := grpc.Invoke(ctx, "/sa.StorageAuthority/CountPendingAuthorizations", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) CountOrders(ctx context.Context, in *CountOrdersRequest, opts ...grpc.CallOption) (*Count, error) {
+	out := new(Count)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/CountOrders", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -930,6 +1285,15 @@ func (c *storageAuthorityClient) CountFQDNSets(ctx context.Context, in *CountFQD
 func (c *storageAuthorityClient) FQDNSetExists(ctx context.Context, in *FQDNSetExistsRequest, opts ...grpc.CallOption) (*Exists, error) {
 	out := new(Exists)
 	err := grpc.Invoke(ctx, "/sa.StorageAuthority/FQDNSetExists", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) PreviousCertificateExists(ctx context.Context, in *PreviousCertificateExistsRequest, opts ...grpc.CallOption) (*Exists, error) {
+	out := new(Exists)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/PreviousCertificateExists", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1035,26 +1399,112 @@ func (c *storageAuthorityClient) DeactivateAuthorization(ctx context.Context, in
 	return out, nil
 }
 
+func (c *storageAuthorityClient) NewOrder(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Order, error) {
+	out := new(core.Order)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/NewOrder", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) SetOrderProcessing(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Empty, error) {
+	out := new(core.Empty)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/SetOrderProcessing", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) SetOrderError(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Empty, error) {
+	out := new(core.Empty)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/SetOrderError", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) FinalizeOrder(ctx context.Context, in *core.Order, opts ...grpc.CallOption) (*core.Empty, error) {
+	out := new(core.Empty)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/FinalizeOrder", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) GetOrder(ctx context.Context, in *OrderRequest, opts ...grpc.CallOption) (*core.Order, error) {
+	out := new(core.Order)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetOrder", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) GetValidOrderAuthorizations(ctx context.Context, in *GetValidOrderAuthorizationsRequest, opts ...grpc.CallOption) (*Authorizations, error) {
+	out := new(Authorizations)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetValidOrderAuthorizations", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) GetOrderForNames(ctx context.Context, in *GetOrderForNamesRequest, opts ...grpc.CallOption) (*core.Order, error) {
+	out := new(core.Order)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetOrderForNames", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) GetAuthorizations(ctx context.Context, in *GetAuthorizationsRequest, opts ...grpc.CallOption) (*Authorizations, error) {
+	out := new(Authorizations)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/GetAuthorizations", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storageAuthorityClient) AddPendingAuthorizations(ctx context.Context, in *AddPendingAuthorizationsRequest, opts ...grpc.CallOption) (*AuthorizationIDs, error) {
+	out := new(AuthorizationIDs)
+	err := grpc.Invoke(ctx, "/sa.StorageAuthority/AddPendingAuthorizations", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for StorageAuthority service
 
 type StorageAuthorityServer interface {
 	// Getters
 	GetRegistration(context.Context, *RegistrationID) (*core.Registration, error)
-	GetRegistrationByKey(context.Context, *JsonWebKey) (*core.Registration, error)
+	GetRegistrationByKey(context.Context, *JSONWebKey) (*core.Registration, error)
 	GetAuthorization(context.Context, *AuthorizationID) (*core.Authorization, error)
+	GetPendingAuthorization(context.Context, *GetPendingAuthorizationRequest) (*core.Authorization, error)
 	GetValidAuthorizations(context.Context, *GetValidAuthorizationsRequest) (*ValidAuthorizations, error)
 	GetCertificate(context.Context, *Serial) (*core.Certificate, error)
 	GetCertificateStatus(context.Context, *Serial) (*CertificateStatus, error)
 	CountCertificatesRange(context.Context, *Range) (*Count, error)
 	CountCertificatesByNames(context.Context, *CountCertificatesByNamesRequest) (*CountByNames, error)
+	CountCertificatesByExactNames(context.Context, *CountCertificatesByNamesRequest) (*CountByNames, error)
 	CountRegistrationsByIP(context.Context, *CountRegistrationsByIPRequest) (*Count, error)
+	CountRegistrationsByIPRange(context.Context, *CountRegistrationsByIPRequest) (*Count, error)
 	CountPendingAuthorizations(context.Context, *RegistrationID) (*Count, error)
+	CountOrders(context.Context, *CountOrdersRequest) (*Count, error)
 	// Return a count of authorizations with status "invalid" that belong to
 	// a given registration ID and expire in the given time range.
 	CountInvalidAuthorizations(context.Context, *CountInvalidAuthorizationsRequest) (*Count, error)
 	GetSCTReceipt(context.Context, *GetSCTReceiptRequest) (*SignedCertificateTimestamp, error)
 	CountFQDNSets(context.Context, *CountFQDNSetsRequest) (*Count, error)
 	FQDNSetExists(context.Context, *FQDNSetExistsRequest) (*Exists, error)
+	PreviousCertificateExists(context.Context, *PreviousCertificateExistsRequest) (*Exists, error)
 	// Adders
 	NewRegistration(context.Context, *core.Registration) (*core.Registration, error)
 	UpdateRegistration(context.Context, *core.Registration) (*core.Empty, error)
@@ -1067,6 +1517,15 @@ type StorageAuthorityServer interface {
 	RevokeAuthorizationsByDomain(context.Context, *RevokeAuthorizationsByDomainRequest) (*RevokeAuthorizationsByDomainResponse, error)
 	DeactivateRegistration(context.Context, *RegistrationID) (*core.Empty, error)
 	DeactivateAuthorization(context.Context, *AuthorizationID) (*core.Empty, error)
+	NewOrder(context.Context, *core.Order) (*core.Order, error)
+	SetOrderProcessing(context.Context, *core.Order) (*core.Empty, error)
+	SetOrderError(context.Context, *core.Order) (*core.Empty, error)
+	FinalizeOrder(context.Context, *core.Order) (*core.Empty, error)
+	GetOrder(context.Context, *OrderRequest) (*core.Order, error)
+	GetValidOrderAuthorizations(context.Context, *GetValidOrderAuthorizationsRequest) (*Authorizations, error)
+	GetOrderForNames(context.Context, *GetOrderForNamesRequest) (*core.Order, error)
+	GetAuthorizations(context.Context, *GetAuthorizationsRequest) (*Authorizations, error)
+	AddPendingAuthorizations(context.Context, *AddPendingAuthorizationsRequest) (*AuthorizationIDs, error)
 }
 
 func RegisterStorageAuthorityServer(s *grpc.Server, srv StorageAuthorityServer) {
@@ -1092,7 +1551,7 @@ func _StorageAuthority_GetRegistration_Handler(srv interface{}, ctx context.Cont
 }
 
 func _StorageAuthority_GetRegistrationByKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(JsonWebKey)
+	in := new(JSONWebKey)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -1104,7 +1563,7 @@ func _StorageAuthority_GetRegistrationByKey_Handler(srv interface{}, ctx context
 		FullMethod: "/sa.StorageAuthority/GetRegistrationByKey",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorageAuthorityServer).GetRegistrationByKey(ctx, req.(*JsonWebKey))
+		return srv.(StorageAuthorityServer).GetRegistrationByKey(ctx, req.(*JSONWebKey))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1123,6 +1582,24 @@ func _StorageAuthority_GetAuthorization_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StorageAuthorityServer).GetAuthorization(ctx, req.(*AuthorizationID))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_GetPendingAuthorization_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPendingAuthorizationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).GetPendingAuthorization(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/GetPendingAuthorization",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).GetPendingAuthorization(ctx, req.(*GetPendingAuthorizationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1217,6 +1694,24 @@ func _StorageAuthority_CountCertificatesByNames_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StorageAuthority_CountCertificatesByExactNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CountCertificatesByNamesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).CountCertificatesByExactNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/CountCertificatesByExactNames",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).CountCertificatesByExactNames(ctx, req.(*CountCertificatesByNamesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StorageAuthority_CountRegistrationsByIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CountRegistrationsByIPRequest)
 	if err := dec(in); err != nil {
@@ -1235,6 +1730,24 @@ func _StorageAuthority_CountRegistrationsByIP_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StorageAuthority_CountRegistrationsByIPRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CountRegistrationsByIPRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).CountRegistrationsByIPRange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/CountRegistrationsByIPRange",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).CountRegistrationsByIPRange(ctx, req.(*CountRegistrationsByIPRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StorageAuthority_CountPendingAuthorizations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RegistrationID)
 	if err := dec(in); err != nil {
@@ -1249,6 +1762,24 @@ func _StorageAuthority_CountPendingAuthorizations_Handler(srv interface{}, ctx c
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StorageAuthorityServer).CountPendingAuthorizations(ctx, req.(*RegistrationID))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_CountOrders_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CountOrdersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).CountOrders(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/CountOrders",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).CountOrders(ctx, req.(*CountOrdersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1321,6 +1852,24 @@ func _StorageAuthority_FQDNSetExists_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StorageAuthorityServer).FQDNSetExists(ctx, req.(*FQDNSetExistsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_PreviousCertificateExists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviousCertificateExistsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).PreviousCertificateExists(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/PreviousCertificateExists",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).PreviousCertificateExists(ctx, req.(*PreviousCertificateExistsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1523,6 +2072,168 @@ func _StorageAuthority_DeactivateAuthorization_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StorageAuthority_NewOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(core.Order)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).NewOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/NewOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).NewOrder(ctx, req.(*core.Order))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_SetOrderProcessing_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(core.Order)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).SetOrderProcessing(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/SetOrderProcessing",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).SetOrderProcessing(ctx, req.(*core.Order))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_SetOrderError_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(core.Order)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).SetOrderError(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/SetOrderError",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).SetOrderError(ctx, req.(*core.Order))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_FinalizeOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(core.Order)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).FinalizeOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/FinalizeOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).FinalizeOrder(ctx, req.(*core.Order))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_GetOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).GetOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/GetOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).GetOrder(ctx, req.(*OrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_GetValidOrderAuthorizations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetValidOrderAuthorizationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).GetValidOrderAuthorizations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/GetValidOrderAuthorizations",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).GetValidOrderAuthorizations(ctx, req.(*GetValidOrderAuthorizationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_GetOrderForNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderForNamesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).GetOrderForNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/GetOrderForNames",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).GetOrderForNames(ctx, req.(*GetOrderForNamesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_GetAuthorizations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAuthorizationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).GetAuthorizations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/GetAuthorizations",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).GetAuthorizations(ctx, req.(*GetAuthorizationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StorageAuthority_AddPendingAuthorizations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddPendingAuthorizationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StorageAuthorityServer).AddPendingAuthorizations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sa.StorageAuthority/AddPendingAuthorizations",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StorageAuthorityServer).AddPendingAuthorizations(ctx, req.(*AddPendingAuthorizationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _StorageAuthority_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "sa.StorageAuthority",
 	HandlerType: (*StorageAuthorityServer)(nil),
@@ -1538,6 +2249,10 @@ var _StorageAuthority_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAuthorization",
 			Handler:    _StorageAuthority_GetAuthorization_Handler,
+		},
+		{
+			MethodName: "GetPendingAuthorization",
+			Handler:    _StorageAuthority_GetPendingAuthorization_Handler,
 		},
 		{
 			MethodName: "GetValidAuthorizations",
@@ -1560,12 +2275,24 @@ var _StorageAuthority_serviceDesc = grpc.ServiceDesc{
 			Handler:    _StorageAuthority_CountCertificatesByNames_Handler,
 		},
 		{
+			MethodName: "CountCertificatesByExactNames",
+			Handler:    _StorageAuthority_CountCertificatesByExactNames_Handler,
+		},
+		{
 			MethodName: "CountRegistrationsByIP",
 			Handler:    _StorageAuthority_CountRegistrationsByIP_Handler,
 		},
 		{
+			MethodName: "CountRegistrationsByIPRange",
+			Handler:    _StorageAuthority_CountRegistrationsByIPRange_Handler,
+		},
+		{
 			MethodName: "CountPendingAuthorizations",
 			Handler:    _StorageAuthority_CountPendingAuthorizations_Handler,
+		},
+		{
+			MethodName: "CountOrders",
+			Handler:    _StorageAuthority_CountOrders_Handler,
 		},
 		{
 			MethodName: "CountInvalidAuthorizations",
@@ -1582,6 +2309,10 @@ var _StorageAuthority_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FQDNSetExists",
 			Handler:    _StorageAuthority_FQDNSetExists_Handler,
+		},
+		{
+			MethodName: "PreviousCertificateExists",
+			Handler:    _StorageAuthority_PreviousCertificateExists_Handler,
 		},
 		{
 			MethodName: "NewRegistration",
@@ -1627,6 +2358,42 @@ var _StorageAuthority_serviceDesc = grpc.ServiceDesc{
 			MethodName: "DeactivateAuthorization",
 			Handler:    _StorageAuthority_DeactivateAuthorization_Handler,
 		},
+		{
+			MethodName: "NewOrder",
+			Handler:    _StorageAuthority_NewOrder_Handler,
+		},
+		{
+			MethodName: "SetOrderProcessing",
+			Handler:    _StorageAuthority_SetOrderProcessing_Handler,
+		},
+		{
+			MethodName: "SetOrderError",
+			Handler:    _StorageAuthority_SetOrderError_Handler,
+		},
+		{
+			MethodName: "FinalizeOrder",
+			Handler:    _StorageAuthority_FinalizeOrder_Handler,
+		},
+		{
+			MethodName: "GetOrder",
+			Handler:    _StorageAuthority_GetOrder_Handler,
+		},
+		{
+			MethodName: "GetValidOrderAuthorizations",
+			Handler:    _StorageAuthority_GetValidOrderAuthorizations_Handler,
+		},
+		{
+			MethodName: "GetOrderForNames",
+			Handler:    _StorageAuthority_GetOrderForNames_Handler,
+		},
+		{
+			MethodName: "GetAuthorizations",
+			Handler:    _StorageAuthority_GetAuthorizations_Handler,
+		},
+		{
+			MethodName: "AddPendingAuthorizations",
+			Handler:    _StorageAuthority_AddPendingAuthorizations_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "sa/proto/sa.proto",
@@ -1635,83 +2402,115 @@ var _StorageAuthority_serviceDesc = grpc.ServiceDesc{
 func init() { proto1.RegisterFile("sa/proto/sa.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 1235 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x57, 0xdd, 0x72, 0x13, 0x47,
-	0x13, 0xd5, 0x0f, 0xb2, 0xad, 0xd6, 0x8f, 0xad, 0xb1, 0x25, 0x2f, 0xfb, 0xe1, 0x2f, 0x66, 0x48,
-	0x0a, 0x71, 0x63, 0x82, 0xab, 0x08, 0x17, 0x0e, 0x29, 0x64, 0x24, 0x1c, 0x9b, 0xe0, 0x22, 0x12,
-	0x90, 0xaa, 0xdc, 0x0d, 0xda, 0x46, 0x4c, 0x90, 0x76, 0x37, 0x3b, 0x23, 0x0b, 0xf9, 0x11, 0xf2,
-	0x14, 0x79, 0x8d, 0xbc, 0x54, 0x9e, 0x21, 0x35, 0x33, 0x2b, 0x69, 0x77, 0xb5, 0x92, 0xe1, 0x6e,
-	0x35, 0xd3, 0xe7, 0x4c, 0xcf, 0xf4, 0xe9, 0xd3, 0x36, 0xd4, 0x04, 0x7b, 0xe8, 0x07, 0x9e, 0xf4,
-	0x1e, 0x0a, 0x76, 0xa4, 0x3f, 0x48, 0x4e, 0x30, 0xbb, 0xde, 0xf7, 0x02, 0x0c, 0x37, 0xd4, 0xa7,
-	0xd9, 0xa2, 0x77, 0xa0, 0xda, 0xc5, 0x01, 0x17, 0x32, 0x60, 0x92, 0x7b, 0xee, 0x79, 0x9b, 0x00,
-	0xe4, 0xb8, 0x63, 0x65, 0x0f, 0xb3, 0xcd, 0x3c, 0xbd, 0x0d, 0x70, 0x21, 0x3c, 0xf7, 0x37, 0x7c,
-	0xff, 0x12, 0xa7, 0xa4, 0x04, 0xf9, 0x3f, 0x26, 0x9f, 0xf4, 0x56, 0x99, 0x1e, 0xc0, 0x76, 0x6b,
-	0x2c, 0x3f, 0x7a, 0x01, 0xbf, 0x5e, 0x46, 0x16, 0xe9, 0x5b, 0x38, 0x38, 0x43, 0xf9, 0x8e, 0x0d,
-	0xb9, 0x13, 0x0b, 0x13, 0x5d, 0xfc, 0x73, 0x8c, 0x42, 0x92, 0x06, 0x54, 0x83, 0xd8, 0xc1, 0xe6,
-	0x48, 0xb2, 0x0d, 0x9b, 0x8e, 0x37, 0x62, 0xdc, 0x15, 0x56, 0xee, 0x30, 0xdf, 0x2c, 0xaa, 0x53,
-	0x5d, 0x6f, 0x62, 0xe5, 0x75, 0x42, 0x7f, 0x65, 0x61, 0x37, 0x85, 0x94, 0x3c, 0x82, 0xc2, 0x95,
-	0x5a, 0xb6, 0xb2, 0x87, 0xf9, 0x66, 0xe9, 0x98, 0x1e, 0x09, 0x76, 0x94, 0x12, 0x77, 0xf4, 0x8a,
-	0xf9, 0x9d, 0x21, 0x8e, 0xd0, 0x95, 0xf6, 0x33, 0x80, 0xc5, 0x2f, 0x52, 0x85, 0x0d, 0x73, 0xac,
-	0xc9, 0x9f, 0x50, 0x28, 0xb0, 0xb1, 0xfc, 0x78, 0x6d, 0xe5, 0x0e, 0xb3, 0xcd, 0xd2, 0xf1, 0xee,
-	0x91, 0x7e, 0xb3, 0x18, 0x1b, 0xfd, 0x37, 0x0b, 0xb5, 0xe7, 0x18, 0x48, 0xfe, 0x81, 0xf7, 0x99,
-	0xc4, 0x9e, 0x64, 0x72, 0x2c, 0x14, 0x93, 0xc0, 0x80, 0xb3, 0x61, 0xc8, 0x64, 0x03, 0x11, 0xe3,
-	0xf7, 0xa2, 0x1f, 0xf0, 0xf7, 0x18, 0xb4, 0x7c, 0x3f, 0xf0, 0xae, 0xd0, 0xd1, 0xb4, 0x5b, 0x3a,
-	0x56, 0xa3, 0xf4, 0xf5, 0x8a, 0x64, 0x1f, 0xb6, 0xbd, 0xbe, 0xf0, 0x7f, 0x61, 0x42, 0xbe, 0xf5,
-	0x1d, 0x26, 0xd1, 0xb1, 0x6e, 0xe9, 0x57, 0xd9, 0x85, 0x52, 0x80, 0x57, 0xde, 0x27, 0x74, 0xda,
-	0x4c, 0xa2, 0x55, 0xd0, 0x8b, 0x75, 0xa8, 0x84, 0x8b, 0x5d, 0x64, 0xc2, 0x73, 0xad, 0x0d, 0xbd,
-	0x7c, 0x00, 0xf5, 0x21, 0x13, 0xb2, 0xf3, 0xd9, 0xe7, 0xe6, 0x6d, 0x2f, 0xd9, 0xa0, 0x87, 0xae,
-	0xb4, 0x36, 0xf5, 0xf6, 0x1e, 0x94, 0xd5, 0x19, 0x5d, 0x14, 0xbe, 0xe7, 0x0a, 0xb4, 0xb6, 0x54,
-	0x39, 0xc9, 0x0e, 0x6c, 0xb9, 0x9e, 0x6c, 0x7d, 0x90, 0x18, 0x58, 0x45, 0x1d, 0x57, 0x83, 0x22,
-	0x17, 0x9a, 0x04, 0x1d, 0x0b, 0x54, 0xba, 0xd4, 0x82, 0x8d, 0x9e, 0xbe, 0x5a, 0xf2, 0x92, 0xf4,
-	0x01, 0x14, 0xba, 0xcc, 0x1d, 0xa0, 0xe2, 0x41, 0x16, 0x0c, 0x39, 0x0a, 0x19, 0x16, 0xb4, 0x0a,
-	0x1b, 0x43, 0x26, 0xd5, 0xef, 0x9c, 0x2e, 0x61, 0x03, 0x0a, 0xcf, 0xbd, 0xb1, 0x2b, 0x49, 0x05,
-	0x0a, 0x7d, 0xf5, 0x11, 0x6a, 0xed, 0x02, 0xbe, 0xd1, 0xeb, 0x91, 0x17, 0x15, 0xa7, 0xd3, 0x4b,
-	0x36, 0xc2, 0xb9, 0x66, 0x2c, 0x28, 0x04, 0xea, 0x14, 0x8d, 0x28, 0x1d, 0x17, 0x55, 0x95, 0xcd,
-	0xb1, 0x15, 0x28, 0xb8, 0x2a, 0xd2, 0x68, 0x86, 0x0e, 0xa1, 0xac, 0xb9, 0x42, 0x3c, 0x79, 0x04,
-	0xe5, 0x7e, 0xe4, 0x77, 0xa8, 0x92, 0xff, 0x29, 0x7c, 0x34, 0x2e, 0x2a, 0x8f, 0x07, 0x31, 0x79,
-	0x94, 0xe1, 0x96, 0xe2, 0x0f, 0x4b, 0x3a, 0xcf, 0xdc, 0xdc, 0xa8, 0x03, 0x07, 0x9a, 0x25, 0xda,
-	0x48, 0xe2, 0x74, 0x7a, 0xfe, 0x7a, 0x96, 0xb7, 0x6a, 0x0c, 0xdf, 0xf4, 0xcd, 0xe2, 0x0e, 0xb9,
-	0xc4, 0x1d, 0xe8, 0x00, 0xee, 0x6a, 0x9a, 0x73, 0xf7, 0xea, 0xeb, 0xdb, 0x66, 0x07, 0xb6, 0x3e,
-	0x7a, 0x42, 0xea, 0x24, 0x73, 0x3a, 0xc9, 0xf9, 0x41, 0xf9, 0xe4, 0x41, 0x8f, 0x61, 0xef, 0x0c,
-	0x65, 0xef, 0xf9, 0x9b, 0x2e, 0xf6, 0x91, 0xfb, 0x72, 0xc6, 0x9d, 0x54, 0x6e, 0x05, 0x0a, 0x43,
-	0x6f, 0x70, 0xde, 0x36, 0x84, 0xf4, 0x09, 0xec, 0xe9, 0xfc, 0x5e, 0xfc, 0xda, 0xbe, 0xec, 0xa1,
-	0x14, 0x11, 0xd8, 0x84, 0xbb, 0x8e, 0x37, 0x59, 0xd1, 0xc1, 0xf4, 0x3e, 0xec, 0x85, 0x98, 0xce,
-	0x67, 0x2e, 0x16, 0xc0, 0x48, 0x60, 0x56, 0x07, 0x5a, 0xb0, 0x61, 0x22, 0x14, 0x27, 0xea, 0x2f,
-	0xcd, 0xb9, 0x45, 0x9f, 0xc2, 0xc1, 0x2b, 0x16, 0x7c, 0x8a, 0x68, 0xa3, 0x3b, 0x53, 0x7e, 0x7a,
-	0xee, 0x65, 0xb8, 0xd5, 0xf7, 0x1c, 0x0c, 0x2b, 0xd4, 0x82, 0x7a, 0xcb, 0x71, 0x62, 0x68, 0x03,
-	0x2b, 0x41, 0xde, 0xc1, 0x20, 0x2c, 0x4d, 0x05, 0x0a, 0x01, 0xce, 0xee, 0x9b, 0x57, 0x14, 0xaa,
-	0x51, 0xf4, 0xfb, 0x95, 0x69, 0x13, 0x1a, 0x49, 0x0a, 0xd3, 0x40, 0xda, 0x3a, 0xf8, 0x60, 0x26,
-	0xf8, 0x22, 0xfd, 0x3b, 0x0b, 0x76, 0x8f, 0x0f, 0x5c, 0x8c, 0x46, 0xbf, 0xe1, 0x23, 0x14, 0x92,
-	0x8d, 0xfc, 0xa8, 0xbf, 0x12, 0x02, 0x20, 0xfa, 0xf2, 0x1d, 0x06, 0x82, 0x7b, 0x6e, 0x78, 0xec,
-	0xfc, 0xd5, 0x8d, 0x25, 0xd4, 0xa0, 0x28, 0x67, 0xd8, 0xd0, 0x0c, 0x08, 0x00, 0x7e, 0x96, 0xe8,
-	0x2a, 0x90, 0xd0, 0x5e, 0x50, 0x56, 0x61, 0x82, 0x0f, 0x5c, 0x26, 0xc7, 0x01, 0x6a, 0x1f, 0x28,
-	0x93, 0xdb, 0x50, 0xeb, 0x47, 0xdc, 0xc9, 0xbc, 0xce, 0xa6, 0x4e, 0xf1, 0x31, 0xdc, 0x33, 0xef,
-	0x17, 0x17, 0xd9, 0xe9, 0xb4, 0xad, 0xeb, 0x11, 0x79, 0xd4, 0xa8, 0x29, 0xd2, 0x0b, 0xf8, 0x76,
-	0x3d, 0x2c, 0x7c, 0x91, 0x1a, 0x14, 0x3f, 0x70, 0x97, 0x0d, 0xf9, 0x35, 0x3a, 0x0b, 0x51, 0xf8,
-	0xe8, 0x3a, 0xdc, 0x1d, 0x98, 0x6b, 0x1e, 0xff, 0x53, 0x81, 0x9d, 0x9e, 0xf4, 0x02, 0x36, 0x98,
-	0xb1, 0xc9, 0x29, 0x39, 0x81, 0xed, 0x33, 0x8c, 0xf5, 0x11, 0x21, 0x5a, 0xb7, 0x31, 0xc9, 0xdb,
-	0xc4, 0xb8, 0x71, 0x74, 0x95, 0x66, 0xc8, 0x8f, 0x5a, 0xd6, 0xd1, 0xc5, 0xd3, 0xa9, 0x1a, 0x5b,
-	0x55, 0xc5, 0xb0, 0x18, 0x63, 0x2b, 0xd0, 0x3f, 0xc1, 0xce, 0x19, 0xca, 0xd8, 0xc5, 0xc8, 0xae,
-	0x42, 0x26, 0xa6, 0x9c, 0x9d, 0x3a, 0x0a, 0x32, 0xe4, 0x1d, 0x34, 0xd2, 0x07, 0x1e, 0xb9, 0xab,
-	0x58, 0xd6, 0x0e, 0x43, 0x7b, 0x7f, 0xc5, 0xbc, 0xa2, 0x19, 0xf2, 0x08, 0xaa, 0x67, 0x18, 0x35,
-	0x45, 0x02, 0x2a, 0xd8, 0x94, 0xd3, 0xae, 0x99, 0x64, 0x22, 0xdb, 0x34, 0x43, 0x4e, 0xf4, 0x43,
-	0x2c, 0x4f, 0xa6, 0x28, 0xb0, 0xae, 0xbd, 0x2f, 0x19, 0x42, 0x33, 0xe4, 0x7b, 0x68, 0x2c, 0xd9,
-	0xb0, 0xf1, 0xd8, 0x85, 0x83, 0xd8, 0xc5, 0xb9, 0x73, 0xd2, 0x0c, 0xe9, 0x81, 0xb5, 0xca, 0xb8,
-	0xc9, 0xbd, 0x79, 0xe0, 0x6a, 0x5b, 0xb7, 0x77, 0x92, 0x3e, 0x4c, 0x33, 0xe4, 0xe7, 0x30, 0x8d,
-	0x25, 0x4f, 0x35, 0xcf, 0xb9, 0xd6, 0x6f, 0xe3, 0xe9, 0x3d, 0x05, 0x5b, 0x7f, 0xbe, 0x36, 0xf2,
-	0x4b, 0x14, 0x27, 0x4d, 0x5e, 0x31, 0xf8, 0xeb, 0x10, 0x9e, 0xea, 0xca, 0xe4, 0xbb, 0x79, 0xe8,
-	0x3a, 0xd7, 0x8e, 0x33, 0xbe, 0x84, 0x4a, 0xcc, 0x7e, 0x89, 0x15, 0x0a, 0x64, 0xc9, 0x91, 0xed,
-	0xff, 0xeb, 0x8a, 0xad, 0xf4, 0x12, 0x9a, 0x21, 0x3f, 0x40, 0x25, 0x66, 0xca, 0x86, 0x2c, 0xcd,
-	0xa7, 0xe3, 0x49, 0x3c, 0x81, 0x4a, 0xcc, 0x93, 0x0d, 0x2e, 0xcd, 0xa6, 0x6d, 0x2d, 0x1b, 0xb3,
-	0xa4, 0xc5, 0xb5, 0x7d, 0x89, 0x93, 0x44, 0x8b, 0x2e, 0x35, 0xd4, 0x8a, 0x26, 0x7b, 0x02, 0xc4,
-	0xfc, 0x5d, 0x73, 0x23, 0xbe, 0x64, 0xd6, 0x3a, 0x23, 0x5f, 0x4e, 0x69, 0x86, 0x74, 0x60, 0xff,
-	0x12, 0x27, 0x69, 0x25, 0x24, 0x69, 0xfd, 0xb8, 0xaa, 0x49, 0x9f, 0x81, 0x6d, 0xce, 0xff, 0x72,
-	0xa6, 0x44, 0x22, 0x27, 0x50, 0x7f, 0x11, 0x5a, 0xdb, 0xd7, 0x83, 0x2f, 0xa0, 0x91, 0x3e, 0xc5,
-	0x8c, 0xa8, 0xd7, 0x4e, 0xb8, 0x24, 0xd7, 0x39, 0x54, 0xe3, 0xf3, 0x88, 0xdc, 0xd6, 0x6e, 0x95,
-	0x36, 0xe6, 0x6c, 0x3b, 0x6d, 0xcb, 0x98, 0xb5, 0xb6, 0xbe, 0x4a, 0xcb, 0x71, 0x22, 0x82, 0xbc,
-	0x41, 0x76, 0xc9, 0x54, 0x04, 0xdc, 0x59, 0x37, 0x16, 0xc8, 0x7d, 0xd3, 0x63, 0x37, 0xce, 0x1b,
-	0xbb, 0x79, 0x73, 0xe0, 0x3c, 0xe9, 0x13, 0x68, 0xb4, 0x91, 0xf5, 0x25, 0xbf, 0x5a, 0x96, 0xd3,
-	0x72, 0x4b, 0x27, 0x32, 0x7e, 0x0a, 0xfb, 0x0b, 0xf0, 0x17, 0x78, 0x7e, 0x1c, 0x7e, 0xba, 0xf9,
-	0x7b, 0x41, 0xff, 0xf7, 0xf4, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x5c, 0xa3, 0x8e, 0xd2, 0x6c,
-	0x0d, 0x00, 0x00,
+	// 1760 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0xef, 0x72, 0x1b, 0xb7,
+	0x11, 0xe7, 0x1f, 0xd3, 0x96, 0x56, 0x7f, 0x2c, 0xc1, 0x92, 0x7c, 0x39, 0x4b, 0xb2, 0x8c, 0xb8,
+	0xae, 0x32, 0xed, 0x28, 0xae, 0xda, 0x49, 0x3a, 0xa3, 0xba, 0xad, 0x64, 0xc9, 0x8c, 0x62, 0x5b,
+	0x56, 0x8f, 0x8e, 0x92, 0x69, 0x67, 0x3a, 0x03, 0xf3, 0x60, 0x1a, 0x35, 0x75, 0xc7, 0x00, 0xa0,
+	0x64, 0xf9, 0x05, 0xda, 0x27, 0xe8, 0xf4, 0x63, 0x9f, 0xa3, 0xef, 0xd2, 0x37, 0xe8, 0x0b, 0xf4,
+	0x5b, 0x07, 0x0b, 0x1c, 0xef, 0x0f, 0xef, 0xc8, 0x78, 0xdc, 0xc9, 0xb7, 0xdb, 0xc5, 0xee, 0x6f,
+	0x17, 0x8b, 0xc5, 0xe2, 0x47, 0xc2, 0xb2, 0x62, 0x9f, 0x0f, 0x64, 0xac, 0xe3, 0xcf, 0x15, 0xdb,
+	0xc1, 0x0f, 0xd2, 0x50, 0xcc, 0x5f, 0xed, 0xc6, 0x92, 0xbb, 0x05, 0xf3, 0x69, 0x97, 0xe8, 0x16,
+	0x2c, 0x06, 0xbc, 0x27, 0x94, 0x96, 0x4c, 0x8b, 0x38, 0x3a, 0x3e, 0x24, 0x8b, 0xd0, 0x10, 0xa1,
+	0x57, 0xdf, 0xaa, 0x6f, 0x37, 0x83, 0x86, 0x08, 0xe9, 0x26, 0xc0, 0xd7, 0x9d, 0x17, 0x27, 0xdf,
+	0xf2, 0x57, 0x4f, 0xf9, 0x15, 0x59, 0x82, 0xe6, 0x5f, 0x2e, 0xdf, 0xe2, 0xf2, 0x7c, 0x60, 0x3e,
+	0xe9, 0x3d, 0xb8, 0xb9, 0x3f, 0xd4, 0x6f, 0x62, 0x29, 0xde, 0x8f, 0x43, 0xcc, 0x22, 0xc4, 0xbf,
+	0xea, 0xb0, 0xd9, 0xe6, 0xfa, 0x94, 0x47, 0xa1, 0x88, 0x7a, 0x39, 0xeb, 0x80, 0x7f, 0x3f, 0xe4,
+	0x4a, 0x93, 0x07, 0xb0, 0x28, 0x73, 0x79, 0xb8, 0x0c, 0x0a, 0x5a, 0x63, 0x27, 0x42, 0x1e, 0x69,
+	0xf1, 0x5a, 0x70, 0xf9, 0xf2, 0x6a, 0xc0, 0xbd, 0x06, 0x86, 0x29, 0x68, 0xc9, 0x36, 0xdc, 0x4c,
+	0x35, 0x67, 0xac, 0x3f, 0xe4, 0x5e, 0x13, 0x0d, 0x8b, 0x6a, 0xb2, 0x09, 0x70, 0xc1, 0xfa, 0x22,
+	0xfc, 0x26, 0xd2, 0xa2, 0xef, 0x5d, 0xc3, 0xa8, 0x19, 0x0d, 0x55, 0xb0, 0xd1, 0xe6, 0xfa, 0xcc,
+	0x28, 0x72, 0x99, 0xab, 0x0f, 0x4d, 0xdd, 0x83, 0x1b, 0x61, 0x7c, 0xce, 0x44, 0xa4, 0xbc, 0xc6,
+	0x56, 0x73, 0x7b, 0x36, 0x48, 0x44, 0x53, 0xd4, 0x28, 0xbe, 0xc4, 0x04, 0x9b, 0x81, 0xf9, 0xa4,
+	0xff, 0xac, 0xc3, 0xad, 0x92, 0x90, 0xe4, 0xd7, 0xd0, 0xc2, 0xd4, 0xbc, 0xfa, 0x56, 0x73, 0x7b,
+	0x6e, 0x97, 0xee, 0x28, 0xb6, 0x53, 0x62, 0xb7, 0xf3, 0x9c, 0x0d, 0x8e, 0xfa, 0xfc, 0x9c, 0x47,
+	0x3a, 0xb0, 0x0e, 0xfe, 0x0b, 0x80, 0x54, 0x49, 0xd6, 0xe0, 0xba, 0x0d, 0xee, 0x4e, 0xc9, 0x49,
+	0xe4, 0x33, 0x68, 0xb1, 0xa1, 0x7e, 0xf3, 0x1e, 0xab, 0x3a, 0xb7, 0x7b, 0x6b, 0x07, 0x5b, 0x25,
+	0x7f, 0x62, 0xd6, 0x82, 0xfe, 0xb7, 0x01, 0xcb, 0x8f, 0xb9, 0x34, 0xa5, 0xec, 0x32, 0xcd, 0x3b,
+	0x9a, 0xe9, 0xa1, 0x32, 0xc0, 0x8a, 0x4b, 0xc1, 0xfa, 0x09, 0xb0, 0x95, 0xc8, 0x0e, 0x10, 0x35,
+	0x7c, 0xa5, 0xba, 0x52, 0xbc, 0xe2, 0x72, 0x7f, 0x30, 0x90, 0xf1, 0x05, 0x0f, 0x31, 0xca, 0x4c,
+	0x50, 0xb2, 0x82, 0x38, 0x88, 0xe8, 0x8e, 0xcd, 0x49, 0xe6, 0x5c, 0xe3, 0xae, 0x1a, 0x3c, 0x63,
+	0x4a, 0x7f, 0x33, 0x08, 0x99, 0xe6, 0xa1, 0x3b, 0xb2, 0xa2, 0x9a, 0x6c, 0xc1, 0x9c, 0xe4, 0x17,
+	0xf1, 0x5b, 0x1e, 0x1e, 0x32, 0xcd, 0xbd, 0x16, 0x5a, 0x65, 0x55, 0xe4, 0x3e, 0x2c, 0x38, 0x31,
+	0xe0, 0x4c, 0xc5, 0x91, 0x77, 0x1d, 0x6d, 0xf2, 0x4a, 0xf2, 0x2b, 0x58, 0xed, 0x33, 0xa5, 0x8f,
+	0xde, 0x0d, 0x84, 0x3d, 0xca, 0x13, 0xd6, 0xeb, 0xf0, 0x48, 0x7b, 0x37, 0xd0, 0xba, 0x7c, 0x91,
+	0x50, 0x98, 0x37, 0x09, 0x05, 0x5c, 0x0d, 0xe2, 0x48, 0x71, 0x6f, 0x06, 0x2f, 0x4c, 0x4e, 0x47,
+	0x7c, 0x98, 0x89, 0x62, 0xbd, 0xff, 0x5a, 0x73, 0xe9, 0xcd, 0x22, 0xd8, 0x48, 0x26, 0xeb, 0x30,
+	0x2b, 0x14, 0xc2, 0xf2, 0xd0, 0x03, 0x2c, 0x53, 0xaa, 0xa0, 0x5b, 0x70, 0xbd, 0x63, 0xeb, 0x5a,
+	0x51, 0x6f, 0xba, 0x07, 0xad, 0x80, 0x45, 0x3d, 0x0c, 0xc2, 0x99, 0xec, 0x0b, 0xae, 0xb4, 0xeb,
+	0xcb, 0x91, 0x6c, 0x9c, 0xfb, 0x4c, 0x9b, 0x95, 0x06, 0xae, 0x38, 0x89, 0x6e, 0x40, 0xeb, 0x71,
+	0x3c, 0x8c, 0x34, 0x59, 0x81, 0x56, 0xd7, 0x7c, 0x38, 0x4f, 0x2b, 0xd0, 0xef, 0xe0, 0x2e, 0x2e,
+	0x67, 0x4e, 0x5f, 0x1d, 0x5c, 0x9d, 0xb0, 0x73, 0x3e, 0xba, 0x13, 0x77, 0xa1, 0x25, 0x4d, 0x78,
+	0x74, 0x9c, 0xdb, 0x9d, 0x35, 0x7d, 0x8a, 0xf9, 0x04, 0x56, 0x6f, 0x90, 0x23, 0xe3, 0xe0, 0xae,
+	0x82, 0x15, 0xe8, 0x5f, 0xeb, 0x30, 0x8f, 0xd0, 0x0e, 0x8e, 0xfc, 0x0e, 0xe6, 0xbb, 0x19, 0xd9,
+	0xb5, 0xfd, 0x1d, 0x03, 0x97, 0xb5, 0xcb, 0xf6, 0x7b, 0xce, 0xc1, 0xff, 0x22, 0xd7, 0xf6, 0x04,
+	0xae, 0x99, 0x40, 0xae, 0x56, 0xf8, 0x9d, 0xee, 0xb1, 0x91, 0xdd, 0xe3, 0x29, 0x6c, 0x60, 0x80,
+	0xec, 0x70, 0x54, 0x07, 0x57, 0xc7, 0xa7, 0xc9, 0x0e, 0xcd, 0x8c, 0x1b, 0xb8, 0x39, 0xd8, 0x10,
+	0x83, 0x74, 0xc7, 0x8d, 0xf2, 0x1d, 0xd3, 0xbf, 0xd5, 0xe1, 0x1e, 0x42, 0x1e, 0x47, 0x17, 0x1f,
+	0x3f, 0x4c, 0x7c, 0x98, 0x79, 0x13, 0x2b, 0x8d, 0xbb, 0xb1, 0x13, 0x70, 0x24, 0xa7, 0xa9, 0x34,
+	0x2b, 0x52, 0xe9, 0x00, 0xc1, 0x4c, 0x5e, 0xc8, 0x90, 0xcb, 0x51, 0xe8, 0x75, 0x98, 0x65, 0x5d,
+	0xdc, 0xfd, 0x28, 0x6a, 0xaa, 0x98, 0xbe, 0xbf, 0x43, 0x58, 0x69, 0x73, 0xdd, 0x79, 0xfc, 0x32,
+	0xe0, 0x5d, 0x2e, 0x06, 0x3a, 0x81, 0xad, 0x9a, 0x08, 0x2b, 0xd0, 0xea, 0xc7, 0xbd, 0xe3, 0x43,
+	0x97, 0xbe, 0x15, 0xe8, 0x57, 0xb0, 0x82, 0xa9, 0x3d, 0xf9, 0xc3, 0xe1, 0x49, 0x87, 0x6b, 0x95,
+	0x41, 0xb9, 0x14, 0x51, 0x18, 0x5f, 0xba, 0xcc, 0x9c, 0x54, 0x3d, 0x54, 0xe9, 0x43, 0x58, 0x71,
+	0x20, 0x47, 0xef, 0x84, 0x4a, 0x91, 0x32, 0x1e, 0xf5, 0xbc, 0xc7, 0x29, 0x6c, 0x9d, 0x4a, 0x7e,
+	0x21, 0xe2, 0xa1, 0xca, 0xb4, 0x76, 0xde, 0xbb, 0x6a, 0x70, 0xae, 0x40, 0x4b, 0xf2, 0x64, 0x37,
+	0xcd, 0xc0, 0x0a, 0xe6, 0x9e, 0x5a, 0x77, 0xe3, 0xc7, 0xf1, 0x0b, 0xfd, 0x66, 0x02, 0x27, 0xd1,
+	0xa7, 0xb0, 0xf1, 0x9c, 0xc9, 0xb7, 0x99, 0x78, 0x41, 0x32, 0x7d, 0x26, 0x97, 0x8f, 0xc0, 0xb5,
+	0x6e, 0x1c, 0x72, 0x17, 0x0f, 0xbf, 0x69, 0x07, 0x56, 0xf7, 0xc3, 0x30, 0x87, 0x65, 0x41, 0x96,
+	0xa0, 0x19, 0x72, 0x99, 0xbc, 0xda, 0x21, 0x97, 0xe5, 0xf9, 0x1a, 0x50, 0x33, 0xa1, 0xb0, 0x71,
+	0xe6, 0x03, 0xfc, 0xa6, 0x0f, 0x61, 0xad, 0x08, 0xea, 0xe6, 0x97, 0xa9, 0x85, 0xe8, 0x25, 0x83,
+	0xc5, 0xd4, 0x02, 0x25, 0xfa, 0x9f, 0x3a, 0xf8, 0x1d, 0xd1, 0x8b, 0x78, 0xd6, 0xeb, 0xa5, 0x38,
+	0xe7, 0x4a, 0xb3, 0xf3, 0x41, 0x91, 0x60, 0x98, 0x07, 0x58, 0x75, 0xf5, 0x19, 0x97, 0x4a, 0xc4,
+	0x91, 0xcb, 0x27, 0xa3, 0x49, 0x1b, 0xa5, 0x99, 0x69, 0x14, 0xd3, 0xad, 0x3a, 0x81, 0x74, 0x4f,
+	0x40, 0xaa, 0x30, 0x98, 0xfc, 0x9d, 0xe6, 0x91, 0x01, 0x50, 0x38, 0xfb, 0xe7, 0x83, 0x8c, 0xc6,
+	0x78, 0x2b, 0xd1, 0x8b, 0x98, 0x1e, 0x4a, 0x8e, 0x63, 0x7f, 0x3e, 0x48, 0x15, 0xe4, 0xe7, 0xb0,
+	0xdc, 0xcd, 0xbc, 0x6c, 0xb6, 0xfc, 0x37, 0x30, 0xfa, 0xf8, 0x02, 0x7d, 0x04, 0x9f, 0xda, 0x33,
+	0xcb, 0xdf, 0xe8, 0x83, 0xab, 0x43, 0x6c, 0x8d, 0x29, 0x9d, 0x43, 0xff, 0x0c, 0xf7, 0x27, 0xbb,
+	0xbb, 0x6a, 0xaf, 0xc3, 0xec, 0x6b, 0x11, 0xb1, 0xbe, 0x78, 0xcf, 0x93, 0xea, 0xa5, 0x0a, 0xd3,
+	0xd5, 0x03, 0x4b, 0xaf, 0x5c, 0x05, 0x13, 0x91, 0x6e, 0xc2, 0x3c, 0xde, 0xf3, 0xec, 0xe0, 0xca,
+	0xf2, 0xbb, 0x67, 0x40, 0x13, 0x7e, 0x83, 0x76, 0xe5, 0x73, 0xa9, 0x78, 0x68, 0x6b, 0x70, 0x9d,
+	0x75, 0xbb, 0x7a, 0xd4, 0x40, 0x4e, 0xa2, 0x6d, 0xb8, 0xdd, 0xe6, 0x76, 0xb0, 0x3c, 0x89, 0x65,
+	0xee, 0x4d, 0x48, 0x5d, 0xea, 0x59, 0x97, 0x8a, 0xa7, 0xe0, 0x1f, 0x75, 0xf0, 0xda, 0x5c, 0xff,
+	0x68, 0x94, 0xcb, 0x30, 0x0b, 0xc9, 0xbf, 0x1f, 0x0a, 0xc9, 0xcf, 0x76, 0x4d, 0xd4, 0xf7, 0x0a,
+	0xdb, 0x6a, 0x26, 0x28, 0xaa, 0xe9, 0xdf, 0xeb, 0xb0, 0x58, 0xe0, 0x65, 0xbf, 0x4c, 0x78, 0x93,
+	0x7d, 0xa0, 0x36, 0xcc, 0x74, 0x9c, 0x40, 0xc9, 0xd0, 0xf6, 0xff, 0x4f, 0xc9, 0x9e, 0xc1, 0xdd,
+	0xfd, 0x30, 0x2c, 0xa3, 0xd9, 0xa3, 0xca, 0x7d, 0x96, 0x4f, 0x74, 0x12, 0xda, 0x7d, 0x58, 0x2a,
+	0x10, 0x7b, 0x2c, 0x9b, 0x08, 0x93, 0xc1, 0x69, 0x3e, 0x77, 0xff, 0xbd, 0x02, 0x4b, 0x1d, 0x1d,
+	0x4b, 0xd6, 0x4b, 0x1a, 0x58, 0x5f, 0x91, 0x3d, 0xb8, 0xd9, 0xe6, 0xb9, 0xb7, 0x93, 0x10, 0x7c,
+	0x30, 0x72, 0xc7, 0xe3, 0x13, 0x1b, 0x3d, 0xab, 0xa5, 0x35, 0xf2, 0x1b, 0x7c, 0x48, 0xb2, 0xca,
+	0x83, 0x2b, 0xf3, 0xd3, 0x63, 0xd1, 0x20, 0xa4, 0x3f, 0x45, 0x2a, 0xbc, 0x7f, 0x0b, 0x4b, 0xc5,
+	0xb6, 0x21, 0xb7, 0xc6, 0x8e, 0xe3, 0xf8, 0xd0, 0x2f, 0xdb, 0x3a, 0xad, 0x91, 0x97, 0xd8, 0xc0,
+	0x65, 0x35, 0x24, 0xc8, 0xb6, 0x27, 0xff, 0x8e, 0xa9, 0x42, 0x3d, 0x83, 0xb5, 0xf2, 0x1f, 0x11,
+	0xe4, 0x9e, 0x03, 0xad, 0xfe, 0x81, 0xe1, 0xdf, 0xae, 0x60, 0xf9, 0xb4, 0x46, 0x7e, 0x01, 0x8b,
+	0x6d, 0x9e, 0x25, 0x62, 0x04, 0x8c, 0xb1, 0x9d, 0x4c, 0xfe, 0xb2, 0x4d, 0x26, 0xb3, 0x4c, 0x6b,
+	0x64, 0x0f, 0xcb, 0x3b, 0xce, 0xdc, 0xb3, 0x8e, 0xab, 0x48, 0xb0, 0x8a, 0x26, 0xb4, 0x46, 0x1e,
+	0xc2, 0xda, 0x18, 0xf5, 0xb3, 0x3c, 0x33, 0x25, 0x04, 0xfe, 0xec, 0x88, 0x9e, 0xd1, 0x1a, 0xe9,
+	0x80, 0x57, 0x45, 0x16, 0xc9, 0xa7, 0x23, 0xc3, 0x6a, 0x2a, 0xe9, 0x2f, 0x15, 0xc9, 0x1e, 0xad,
+	0x91, 0xef, 0x1c, 0x3b, 0xcb, 0xbb, 0x1d, 0xbd, 0x63, 0x5d, 0xfd, 0x91, 0xc8, 0x5f, 0xb9, 0x0d,
+	0x8e, 0xf1, 0x3e, 0x7b, 0x50, 0x13, 0x39, 0x61, 0x7e, 0xe3, 0xcf, 0xe1, 0x4e, 0x85, 0x35, 0xd6,
+	0xeb, 0x43, 0xe1, 0x1e, 0x81, 0x8f, 0x9f, 0xa5, 0xb7, 0xbb, 0xf4, 0x76, 0xe5, 0xdc, 0x77, 0x61,
+	0x2e, 0x43, 0xf9, 0xc8, 0xda, 0x68, 0x2d, 0xc7, 0x01, 0xf3, 0x3e, 0xa7, 0x2e, 0x64, 0x29, 0x61,
+	0x25, 0x3f, 0x19, 0x99, 0x4e, 0x22, 0xb4, 0x79, 0xc4, 0xa7, 0xb0, 0x90, 0xe3, 0x88, 0xc4, 0x73,
+	0xdd, 0x3f, 0x46, 0x1b, 0xfd, 0x4d, 0x6c, 0xc7, 0x4a, 0x16, 0x41, 0x6b, 0xe4, 0x0b, 0x58, 0xc8,
+	0x51, 0x45, 0x0b, 0x56, 0xc6, 0x1e, 0xf3, 0x49, 0x7c, 0x09, 0x0b, 0x39, 0x62, 0x68, 0xfd, 0xca,
+	0xb8, 0xa2, 0x8f, 0x77, 0xc2, 0xaa, 0x68, 0x8d, 0xbc, 0x80, 0x4f, 0x2a, 0xf9, 0x21, 0xb9, 0x6f,
+	0x4c, 0xa7, 0xd1, 0xc7, 0x02, 0xe0, 0x1e, 0xdc, 0x3c, 0xe1, 0x97, 0x85, 0x31, 0x39, 0x36, 0xd4,
+	0x2a, 0x06, 0xdd, 0x97, 0x40, 0xec, 0x4f, 0xdd, 0xa9, 0xfe, 0x73, 0x56, 0x77, 0x74, 0x3e, 0xd0,
+	0x57, 0xb4, 0x46, 0x8e, 0xe0, 0xf6, 0x09, 0xbf, 0x2c, 0x9d, 0x70, 0x65, 0xd3, 0xab, 0x6a, 0xa4,
+	0xfd, 0x1e, 0x7c, 0x1b, 0xff, 0x87, 0x23, 0x15, 0x12, 0xd9, 0x83, 0xd5, 0x27, 0x8e, 0xc0, 0x7c,
+	0xb8, 0xf3, 0xd7, 0xb0, 0x56, 0x4e, 0x9c, 0xed, 0xcd, 0x9a, 0x48, 0xaa, 0x8b, 0x58, 0xc7, 0xb0,
+	0x98, 0xa7, 0xb8, 0xe4, 0x13, 0x7c, 0x31, 0xca, 0xb8, 0xb4, 0xef, 0x97, 0x2d, 0x59, 0x8e, 0x86,
+	0xcf, 0xcf, 0xc2, 0x7e, 0x18, 0x66, 0x3a, 0x7c, 0x4a, 0x1f, 0x17, 0x53, 0x51, 0xb0, 0x3e, 0x89,
+	0x0d, 0x92, 0x9f, 0xda, 0x8b, 0x3e, 0x95, 0x6e, 0xfa, 0xdb, 0xd3, 0x0d, 0x47, 0x49, 0xef, 0xc1,
+	0xda, 0x21, 0x67, 0x5d, 0x2d, 0x2e, 0xc6, 0xdb, 0x69, 0x7c, 0xae, 0x14, 0x32, 0x7e, 0x04, 0xb7,
+	0x53, 0xe7, 0x1f, 0xf0, 0xee, 0x16, 0xdc, 0x1f, 0xc0, 0xcc, 0x09, 0xbf, 0xc4, 0x29, 0x44, 0xdc,
+	0x12, 0x0a, 0x7e, 0x56, 0xc0, 0x97, 0x87, 0x74, 0x1c, 0xb1, 0x3c, 0x95, 0x71, 0x97, 0x2b, 0x25,
+	0xa2, 0x5e, 0xa9, 0x47, 0x82, 0xfc, 0x33, 0x58, 0x48, 0x3c, 0x8e, 0xa4, 0x8c, 0xe5, 0x34, 0xe3,
+	0xa4, 0x17, 0xab, 0x73, 0x49, 0x8d, 0x67, 0x12, 0x92, 0x4b, 0xf0, 0x11, 0xc9, 0x12, 0xec, 0x62,
+	0xe2, 0x7f, 0x82, 0x3b, 0x13, 0xf8, 0x35, 0x79, 0x90, 0x7d, 0xff, 0xab, 0x09, 0xb8, 0x4f, 0xc6,
+	0x29, 0xe5, 0x88, 0xed, 0xe4, 0xe8, 0x36, 0xb9, 0xe3, 0x10, 0xcb, 0x48, 0x78, 0x31, 0xb9, 0x36,
+	0x2c, 0x8f, 0x91, 0x6c, 0xb2, 0xee, 0x00, 0x3e, 0x24, 0x91, 0x6f, 0xc1, 0xab, 0xa2, 0x9e, 0xf6,
+	0x31, 0x9e, 0x42, 0x4c, 0xfd, 0x95, 0x92, 0x5e, 0x51, 0xb4, 0x76, 0x70, 0xe3, 0x8f, 0x2d, 0xfc,
+	0xa7, 0xfa, 0x7f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x5e, 0x68, 0x89, 0xbd, 0xd8, 0x16, 0x00, 0x00,
 }

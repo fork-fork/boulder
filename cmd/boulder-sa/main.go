@@ -2,21 +2,15 @@ package main
 
 import (
 	"flag"
-	"net"
 	"os"
-
-	"github.com/jmhodges/clock"
-	"google.golang.org/grpc"
 
 	"github.com/letsencrypt/boulder/cmd"
 	"github.com/letsencrypt/boulder/features"
 	bgrpc "github.com/letsencrypt/boulder/grpc"
-	"github.com/letsencrypt/boulder/metrics"
 	"github.com/letsencrypt/boulder/sa"
 	sapb "github.com/letsencrypt/boulder/sa/proto"
+	"github.com/prometheus/client_golang/prometheus"
 )
-
-const clientName = "SA"
 
 type config struct {
 	SA struct {
@@ -24,9 +18,10 @@ type config struct {
 		cmd.DBConfig
 
 		Features map[string]bool
-	}
 
-	Statsd cmd.StatsdConfig
+		// Max simultaneous SQL queries caused by a single RPC.
+		ParallelismPerRPC int
+	}
 
 	Syslog cmd.SyslogConfig
 }
@@ -46,10 +41,9 @@ func main() {
 	err = features.Set(c.SA.Features)
 	cmd.FailOnError(err, "Failed to set feature flags")
 
-	stats, logger := cmd.StatsAndLogging(c.Statsd, c.Syslog)
-	scope := metrics.NewStatsdScope(stats, "SA")
+	scope, logger := cmd.StatsAndLogging(c.Syslog, c.SA.DebugAddr)
 	defer logger.AuditPanic()
-	logger.Info(cmd.VersionString(clientName))
+	logger.Info(cmd.VersionString())
 
 	saConf := c.SA
 
@@ -59,34 +53,36 @@ func main() {
 	dbMap, err := sa.NewDbMap(dbURL, saConf.DBConfig.MaxDBConns)
 	cmd.FailOnError(err, "Couldn't connect to SA database")
 
+	// Export the MaxDBConns
+	dbConnStat := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "max_db_connections",
+		Help: "Maximum number of DB connections allowed.",
+	})
+	scope.MustRegister(dbConnStat)
+	dbConnStat.Set(float64(saConf.DBConfig.MaxDBConns))
+
+	if saConf.DBConfig.MaxIdleDBConns != 0 {
+		dbMap.Db.SetMaxIdleConns(saConf.DBConfig.MaxIdleDBConns)
+	}
 	go sa.ReportDbConnCount(dbMap, scope)
 
-	sai, err := sa.NewSQLStorageAuthority(dbMap, clock.Default(), logger)
+	parallel := saConf.ParallelismPerRPC
+	if parallel < 1 {
+		parallel = 1
+	}
+	sai, err := sa.NewSQLStorageAuthority(dbMap, cmd.Clock(), logger, scope, parallel)
 	cmd.FailOnError(err, "Failed to create SA impl")
 
-	var grpcSrv *grpc.Server
-	if c.SA.GRPC != nil {
-		tls, err := c.SA.TLS.Load()
-		cmd.FailOnError(err, "TLS config")
-		var listener net.Listener
-		grpcSrv, listener, err = bgrpc.NewServer(c.SA.GRPC, tls, scope)
-		cmd.FailOnError(err, "Unable to setup SA gRPC server")
-		gw := bgrpc.NewStorageAuthorityServer(sai)
-		sapb.RegisterStorageAuthorityServer(grpcSrv, gw)
-		go func() {
-			err = grpcSrv.Serve(listener)
-			cmd.FailOnError(err, "SA gRPC service failed")
-		}()
-	}
+	tls, err := c.SA.TLS.Load()
+	cmd.FailOnError(err, "TLS config")
+	serverMetrics := bgrpc.NewServerMetrics(scope)
+	grpcSrv, listener, err := bgrpc.NewServer(c.SA.GRPC, tls, serverMetrics)
+	cmd.FailOnError(err, "Unable to setup SA gRPC server")
+	gw := bgrpc.NewStorageAuthorityServer(sai)
+	sapb.RegisterStorageAuthorityServer(grpcSrv, gw)
 
-	go cmd.CatchSignals(logger, func() {
-		if grpcSrv != nil {
-			grpcSrv.GracefulStop()
-		}
-	})
+	go cmd.CatchSignals(logger, grpcSrv.GracefulStop)
 
-	go cmd.DebugServer(c.SA.DebugAddr)
-	go cmd.ProfileCmd(scope)
-
-	select {}
+	err = cmd.FilterShutdownErrors(grpcSrv.Serve(listener))
+	cmd.FailOnError(err, "SA gRPC service failed")
 }

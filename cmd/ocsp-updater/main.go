@@ -151,16 +151,6 @@ func newUpdater(
 			failureBackoffFactor: config.SignFailureBackoffFactor,
 			failureBackoffMax:    config.SignFailureBackoffMax.Duration,
 		},
-		// The missing SCT loop doesn't need to know about failureBackoffFactor or
-		// failureBackoffMax as it doesn't make any calls to the CA
-		{
-			clk:       clk,
-			stats:     stats.NewScope("MissingSCTReceipts"),
-			batchSize: config.MissingSCTBatchSize,
-			tickDur:   config.MissingSCTWindow.Duration,
-			tickFunc:  updater.missingReceiptsTick,
-			name:      "MissingSCTReceipts",
-		},
 	}
 	if config.RevokedCertificateBatchSize != 0 &&
 		config.RevokedCertificateWindow.Duration != 0 {
@@ -175,6 +165,18 @@ func newUpdater(
 			failureBackoffMax:    config.SignFailureBackoffMax.Duration,
 		})
 	}
+	if !features.Enabled(features.EmbedSCTs) {
+		// The missing SCT loop doesn't need to know about failureBackoffFactor or
+		// failureBackoffMax as it doesn't make any calls to the CA
+		updater.loops = append(updater.loops, &looper{
+			clk:       clk,
+			stats:     stats.NewScope("MissingSCTReceipts"),
+			batchSize: config.MissingSCTBatchSize,
+			tickDur:   config.MissingSCTWindow.Duration,
+			tickFunc:  updater.missingReceiptsTick,
+			name:      "MissingSCTReceipts",
+		})
+	}
 
 	// TODO(#1050): Remove this gate and the nil ccu checks below
 	if config.AkamaiBaseURL != "" {
@@ -184,6 +186,7 @@ func newUpdater(
 			config.AkamaiClientToken,
 			config.AkamaiClientSecret,
 			config.AkamaiAccessToken,
+			config.AkamaiV3Network,
 			config.AkamaiPurgeRetries,
 			config.AkamaiPurgeRetryBackoff.Duration,
 			log,
@@ -620,18 +623,8 @@ func (updater *OCSPUpdater) missingReceiptsTick(ctx context.Context, batchSize i
 			updater.log.AuditErr(fmt.Sprintf("Failed to get certificate: %s", err))
 			continue
 		}
-
-		// If the feature flag is enabled, only send the certificate to the missing
-		// logs using the `SubmitToSingleCT` endpoint that was added for this
-		// purpose
-		if features.Enabled(features.ResubmitMissingSCTsOnly) {
-			for _, log := range missingLogs {
-				_ = updater.pubc.SubmitToSingleCT(ctx, log.uri, log.key, cert.DER)
-			}
-		} else {
-			// Otherwise, use the classic behaviour and submit the certificate to
-			// every log to get SCTS using the pre-existing `SubmitToCT` endpoint
-			_ = updater.pubc.SubmitToCT(ctx, cert.DER)
+		for _, log := range missingLogs {
+			_ = updater.pubc.SubmitToSingleCT(ctx, log.uri, log.key, cert.DER)
 		}
 	}
 	return nil
@@ -707,8 +700,6 @@ func newLog(logConfig cmd.LogDescription) (*ctLog, error) {
 	return &ctLog{logID: logID, key: logConfig.Key, uri: logConfig.URI}, nil
 }
 
-const clientName = "OCSP"
-
 type config struct {
 	OCSPUpdater cmd.OCSPUpdaterConfig
 
@@ -735,18 +726,19 @@ func setupClients(c cmd.OCSPUpdaterConfig, stats metrics.Scope) (
 		tls, err = c.TLS.Load()
 		cmd.FailOnError(err, "TLS config")
 	}
-	caConn, err := bgrpc.ClientSetup(c.OCSPGeneratorService, tls, stats)
+	clientMetrics := bgrpc.NewClientMetrics(stats)
+	caConn, err := bgrpc.ClientSetup(c.OCSPGeneratorService, tls, clientMetrics)
 	cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to CA")
 	// Make a CA client that is only capable of signing OCSP.
 	// TODO(jsha): Once we've fully moved to gRPC, replace this
 	// with a plain caPB.NewOCSPGeneratorClient.
 	cac := bgrpc.NewCertificateAuthorityClient(nil, capb.NewOCSPGeneratorClient(caConn))
 
-	publisherConn, err := bgrpc.ClientSetup(c.Publisher, tls, stats)
+	publisherConn, err := bgrpc.ClientSetup(c.Publisher, tls, clientMetrics)
 	cmd.FailOnError(err, "Failed to load credentials and create connection to service")
 	pubc := bgrpc.NewPublisherClientWrapper(pubPB.NewPublisherClient(publisherConn))
 
-	conn, err := bgrpc.ClientSetup(c.SAService, tls, stats)
+	conn, err := bgrpc.ClientSetup(c.SAService, tls, clientMetrics)
 	cmd.FailOnError(err, "Failed to load credentials and create gRPC connection to SA")
 	sac := bgrpc.NewStorageAuthorityClient(sapb.NewStorageAuthorityClient(conn))
 
@@ -769,10 +761,9 @@ func main() {
 	err = features.Set(conf.Features)
 	cmd.FailOnError(err, "Failed to set feature flags")
 
-	stats, auditlogger := cmd.StatsAndLogging(c.Statsd, c.Syslog)
-	scope := metrics.NewStatsdScope(stats, "OCSPUpdater")
-	defer auditlogger.AuditPanic()
-	auditlogger.Info(cmd.VersionString(clientName))
+	scope, logger := cmd.StatsAndLogging(c.Syslog, conf.DebugAddr)
+	defer logger.AuditPanic()
+	logger.Info(cmd.VersionString())
 
 	// Configure DB
 	dbURL, err := conf.DBConfig.URL()
@@ -785,7 +776,7 @@ func main() {
 
 	updater, err := newUpdater(
 		scope,
-		clock.Default(),
+		cmd.Clock(),
 		dbMap,
 		cac,
 		pubc,
@@ -794,7 +785,7 @@ func main() {
 		conf,
 		c.Common.CT.Logs,
 		c.Common.IssuerCert,
-		auditlogger,
+		logger,
 	)
 
 	cmd.FailOnError(err, "Failed to create updater")
@@ -803,13 +794,12 @@ func main() {
 		go func(loop *looper) {
 			err = loop.loop()
 			if err != nil {
-				auditlogger.AuditErr(err.Error())
+				logger.AuditErr(err.Error())
 			}
 		}(l)
 	}
 
-	go cmd.DebugServer(conf.DebugAddr)
-	go cmd.ProfileCmd(scope)
+	go cmd.CatchSignals(logger, nil)
 
 	// Sleep forever (until signaled)
 	select {}

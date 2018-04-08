@@ -15,9 +15,12 @@ type Limits interface {
 	TotalCertificates() RateLimitPolicy
 	CertificatesPerName() RateLimitPolicy
 	RegistrationsPerIP() RateLimitPolicy
+	RegistrationsPerIPRange() RateLimitPolicy
 	PendingAuthorizationsPerAccount() RateLimitPolicy
 	InvalidAuthorizationsPerAccount() RateLimitPolicy
 	CertificatesPerFQDNSet() RateLimitPolicy
+	PendingOrdersPerAccount() RateLimitPolicy
+	NewOrdersPerAccount() RateLimitPolicy
 	LoadPolicies(contents []byte) error
 }
 
@@ -57,6 +60,15 @@ func (r *limitsImpl) RegistrationsPerIP() RateLimitPolicy {
 	return r.rlPolicy.RegistrationsPerIP
 }
 
+func (r *limitsImpl) RegistrationsPerIPRange() RateLimitPolicy {
+	r.RLock()
+	defer r.RUnlock()
+	if r.rlPolicy == nil {
+		return RateLimitPolicy{}
+	}
+	return r.rlPolicy.RegistrationsPerIPRange
+}
+
 func (r *limitsImpl) PendingAuthorizationsPerAccount() RateLimitPolicy {
 	r.RLock()
 	defer r.RUnlock()
@@ -82,6 +94,24 @@ func (r *limitsImpl) CertificatesPerFQDNSet() RateLimitPolicy {
 		return RateLimitPolicy{}
 	}
 	return r.rlPolicy.CertificatesPerFQDNSet
+}
+
+func (r *limitsImpl) PendingOrdersPerAccount() RateLimitPolicy {
+	r.RLock()
+	defer r.RUnlock()
+	if r.rlPolicy == nil {
+		return RateLimitPolicy{}
+	}
+	return r.rlPolicy.PendingOrdersPerAccount
+}
+
+func (r *limitsImpl) NewOrdersPerAccount() RateLimitPolicy {
+	r.RLock()
+	defer r.RUnlock()
+	if r.rlPolicy == nil {
+		return RateLimitPolicy{}
+	}
+	return r.rlPolicy.NewOrdersPerAccount
 }
 
 // LoadPolicies loads various rate limiting policies from a byte array of
@@ -119,6 +149,12 @@ type rateLimitConfig struct {
 	// Note: Since this is checked before a registration is created, setting a
 	// RegistrationOverride on it has no effect.
 	RegistrationsPerIP RateLimitPolicy `yaml:"registrationsPerIP"`
+	// Number of registrations that can be created per fuzzy IP range. Unlike
+	// RegistrationsPerIP this will apply to a /48 for IPv6 addresses to help curb
+	// abuse from easily obtained IPv6 ranges.
+	// Note: Like RegistrationsPerIP, setting a RegistrationOverride has no
+	// effect here.
+	RegistrationsPerIPRange RateLimitPolicy `yaml:"registrationsPerIPRange"`
 	// Number of pending authorizations that can exist per account. Overrides by
 	// key are not applied, but overrides by registration are.
 	PendingAuthorizationsPerAccount RateLimitPolicy `yaml:"pendingAuthorizationsPerAccount"`
@@ -127,6 +163,12 @@ type rateLimitConfig struct {
 	// Note that this limit is actually "per account, per hostname," but that
 	// is too long for the variable name.
 	InvalidAuthorizationsPerAccount RateLimitPolicy `yaml:"invalidAuthorizationsPerAccount"`
+	// Number of pending orders that can exist per account. Overrides by key are
+	// not applied, but overrides by registration are. **DEPRECATED**
+	PendingOrdersPerAccount RateLimitPolicy `yaml:"pendingOrdersPerAccount"`
+	// Number of new orders that can be created per account within the given
+	// window. Overrides by key are not applied, but overrides by registration are.
+	NewOrdersPerAccount RateLimitPolicy `yaml:"newOrdersPerAccount"`
 	// Number of certificates that can be extant containing a specific set
 	// of DNS names.
 	CertificatesPerFQDNSet RateLimitPolicy `yaml:"certificatesPerFQDNSet"`
